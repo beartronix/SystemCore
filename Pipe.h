@@ -40,6 +40,16 @@
 #include <iostream>
 #endif
 
+#ifdef __STDCPP_THREADS__
+#include <mutex>
+#else
+#include "mutex.hpp"
+namespace std {
+using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
+using lock_guard = cpp_freertos::LockGuard;
+}
+#endif
+
 #include "Processing.h"
 
 /*
@@ -55,7 +65,9 @@
     - toPushTry()                  .. Try to push particles to children
 */
 
-#define nowMs()		((uint32_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+#include <stm32h5xx_hal.h>
+//#define nowMs()		((uint32_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+#define nowMs HAL_GetTick
 
 typedef uint32_t ParticleTime;
 

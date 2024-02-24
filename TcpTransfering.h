@@ -31,6 +31,19 @@
 #ifndef TCP_TRANSFERING_H
 #define TCP_TRANSFERING_H
 
+<<<<<<< HEAD
+=======
+#ifdef __STDCPP_THREADS__
+#include <mutex>
+#else
+#include "mutex.hpp"
+namespace std {
+using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
+using lock_guard = cpp_freertos::LockGuard;
+}
+#endif
+
+>>>>>>> a8d444d (stm32 edits)
 #include <string>
 
 #ifdef _WIN32
@@ -48,9 +61,8 @@
 #include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <fcntl.h>
 #endif
 
 /* Literature
@@ -137,7 +149,6 @@ private:
 	size_t mBytesSent;
 
 	/* static functions */
-	static uint32_t millis();
 	static bool fileNonBlockingSet(SOCKET fd);
 #ifdef _WIN32
 	static void globalWsaDestruct();

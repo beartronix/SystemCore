@@ -31,8 +31,19 @@
 #ifndef SYSTEM_COMMANDING_H
 #define SYSTEM_COMMANDING_H
 
+#ifdef __STDCPP_THREADS__
+#include <mutex>
+#else
+#include "mutex.hpp"
+namespace std {
+using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
+using lock_guard = cpp_freertos::LockGuard;
+}
+#endif
+
 #include <string>
 #include <list>
+<<<<<<< HEAD
 #include <functional>
 
 #include "Processing.h"
@@ -41,6 +52,16 @@
 // Banana optimization
 using FuncCommand = std::function<void (char *pArgs, char *pBuf, char *pBufEnd)>;
 #define BIND_MEMBER_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
+=======
+#include "Processing.h"
+#include "TcpTransfering.h"
+
+#include <functional>
+
+//typedef void (*FuncCommand)(char *pArgs, char *pBuf, char *pBufEnd);
+
+using FuncCommand = std::function<void(char*, char*, char*)>;
+>>>>>>> a8d444d (stm32 edits)
 
 struct SystemCommand
 {

@@ -80,7 +80,7 @@
 #endif
 
 #ifndef CONFIG_PROC_SHOW_ADDRESS_IN_ID
-#define CONFIG_PROC_SHOW_ADDRESS_IN_ID			0
+#define CONFIG_PROC_SHOW_ADDRESS_IN_ID			1
 #endif
 
 #ifndef CONFIG_PROC_ID_BUFFER_SIZE
@@ -141,10 +141,6 @@ public:
 	void unusedSet();
 	void procTreeDisplaySet(bool display);
 
-	bool initDone() const;
-	bool processDone() const;
-	bool shutdownDone() const;
-
 	size_t processTreeStr(char *pBuf, char *pBufEnd, bool detailed = true, bool colored = false);
 
 	static void undrivenSet(Processing *pChild);
@@ -183,6 +179,7 @@ protected:
 #if !CONFIG_PROC_HAVE_LIB_STD_CPP
 	void maxChildrenSet(uint16_t cnt);
 #endif
+	bool initDone() const;
 	DriverMode driver() const;
 
 	static size_t procId(char *pBuf, char *pBufEnd, const Processing *pProc);
@@ -272,10 +269,7 @@ int16_t logEntryCreate(
 				const char *msg, ...);
 #define genericLog(l, c, m, ...)			(logEntryCreate(l, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #else
-inline void levelLogSet(int lvl)
-{
-	(void)lvl;
-}
+#define levelLogSet(lvl)
 #define pFctLogEntryCreatedSet(pFct)
 inline int16_t logEntryCreateDummy(
 				const int severity,
@@ -305,6 +299,8 @@ inline int16_t logEntryCreateDummy(
 #define procWrnLog(m, ...)				(wrnLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 #define procInfLog(m, ...)				(infLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 #define procDbgLog(l, m, ...)				(dbgLog(GLOBAL_PROC_LOG_LEVEL_OFFSET + l, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
+
+uint32_t millis();
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
 #define dInfoDebugPrefix

@@ -32,6 +32,7 @@
 #define TCP_LISTENING_H
 
 #include <list>
+#include <string>
 
 #ifdef _WIN32
 // https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170
@@ -48,9 +49,9 @@
 #include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <fcntl.h>
+//#include <fcntl.h> IIRC, this produces a O_NONBLOCK conflict with LWIP
 #endif
 
 #include "Processing.h"

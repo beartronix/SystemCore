@@ -264,7 +264,8 @@ string TcpListening::errnoToStr(int num)
 	if (res)
 		*pBuf = 0;
 #else
-	pBuf = ::strerror_r(num, buf, len);
+//	pBuf = ::strerror_r(num, buf, len);
+	pBuf = strerror(num);
 #endif
 	return string(pBuf);
 }

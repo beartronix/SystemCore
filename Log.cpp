@@ -39,6 +39,8 @@
 #include <windows.h>
 #endif
 
+#include "rtctime.h"
+
 using namespace std;
 using namespace chrono;
 
@@ -70,9 +72,31 @@ void levelLogSet(int lvl)
 	levelLog = lvl;
 }
 
+#include <stm32h5xx_hal.h>
+uint32_t millis()
+{
+	return HAL_GetTick();
+}
+
 void pFctLogEntryCreatedSet(LogEntryCreatedFct pFct)
 {
 	pFctLogEntryCreated = pFct;
+}
+
+const char* severityToStr(const int severity)
+{
+	switch (severity)
+	{
+	case 1:
+		return "ERR";
+	case 2:
+		return "WRN";
+	case 3:
+		return "INF";
+	default:
+		break;
+	}
+	return "DBG";
 }
 
 int16_t logEntryCreate(const int severity, const char *filename, const char *function, const int line, const int16_t code, const char *msg, ...)
@@ -94,9 +118,11 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 	va_list args;
 
-	system_clock::time_point t = system_clock::now();
+	system_clock::time_point t = system_clock::from_time_t(getRtcTime());
 	duration<long, nano> tDiff = t - tOld;
+#if 0
 	double tDiffSec = tDiff.count() / 10e9;
+#endif
 	time_t tt_t = system_clock::to_time_t(t);
 	tm bt {};
 	char timeBuf[32];
@@ -109,8 +135,10 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 #endif
 	strftime(timeBuf, sizeof(timeBuf), "%d.%m.%y %H:%M:%S", &bt);
 
+
 	// "%03d"
-	pStart += snprintf(pStart, pEnd - pStart, "%s.000 +%3.3f %4d %3d  %-24s ", timeBuf, tDiffSec, line, severity, function);
+//	pStart += snprintf(pStart, pEnd - pStart, "%s.000 +%3.3f %4d %3d  %-24s ", timeBuf, tDiffSec, line, severity, function);
+	pStart += snprintf(pStart, pEnd - pStart, "%s L%4d %s  %-24s ", timeBuf, line, severityToStr(severity), function);
 
 	va_start(args, msg);
 	pStart += vsnprintf(pStart, pEnd - pStart, msg, args);
@@ -134,17 +162,21 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 			cerr << pBuf << "\r\n" << flush;
 		}
 		else
-			cout << pBuf << "\r\n" << flush;
+			cout << pBuf << "\r\n" << std::flush;
 
 		SetConsoleTextAttribute(hConsole, 7);
 #else
+#if 0
 		if (severity == 1)
 			cerr << "\033[31m" << pBuf << "\033[37m" << "\r\n" << flush;
 		else
 		if (severity == 2)
 			cerr << "\033[33m" << pBuf << "\033[37m" << "\r\n" << flush;
 		else
-			cout << pBuf << "\r\n" << flush;
+			cout << pBuf << "\r\n" << std::flush;
+#else
+		cout << pBuf << "\r\n" << std::flush;
+#endif
 #endif
 	}
 

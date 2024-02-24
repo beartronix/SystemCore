@@ -546,7 +546,7 @@ string TcpTransfering::errnoToStr(int num)
 	if (res)
 		*pBuf = 0;
 #else
-	pBuf = ::strerror_r(num, buf, len);
+	pBuf = strerror(num);
 #endif
 	return string(pBuf);
 }
@@ -565,12 +565,7 @@ void TcpTransfering::processInfo(char *pBuf, char *pBufEnd)
 
 /* static functions */
 
-uint32_t TcpTransfering::millis()
-{
-	auto now = steady_clock::now();
-	auto nowMs = time_point_cast<milliseconds>(now);
-	return (uint32_t)nowMs.time_since_epoch().count();
-}
+
 
 bool TcpTransfering::fileNonBlockingSet(SOCKET fd)
 {
