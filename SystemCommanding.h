@@ -33,10 +33,11 @@
 
 #ifdef __STDCPP_THREADS__
 #include <mutex>
-#else
+#else // currently, "else" refers to STM32, using the freertos-addons from michaelbecker only.
 #include "mutex.hpp"
 namespace std {
 using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
+template <typename T>
 using lock_guard = cpp_freertos::LockGuard;
 }
 #endif
