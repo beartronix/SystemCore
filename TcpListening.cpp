@@ -91,7 +91,7 @@ Success TcpListening::initialize()
 	if (!ok)
 		return procErrLog(-2, "could not init WSA");
 #endif
-	procDbgLog(LOG_LVL, "creating listening socket");
+	procDbgLog(LOG_LVL+1, "creating listening socket");
 
 	mListeningFd = ::socket(mAddress.sin_family, SOCK_STREAM, 0);
 	if (mListeningFd == INVALID_SOCKET)
