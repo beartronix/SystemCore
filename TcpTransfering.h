@@ -31,19 +31,6 @@
 #ifndef TCP_TRANSFERING_H
 #define TCP_TRANSFERING_H
 
-<<<<<<< HEAD
-=======
-#ifdef __STDCPP_THREADS__
-#include <mutex>
-#else
-#include "mutex.hpp"
-namespace std {
-using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
-using lock_guard = cpp_freertos::LockGuard;
-}
-#endif
-
->>>>>>> a8d444d (stm32 edits)
 #include <string>
 
 #ifdef _WIN32
