@@ -127,6 +127,8 @@ enum SuccessState
 	Positive = 1
 };
 
+uint32_t millis();
+
 typedef void (*GlobDestructorFunc)();
 
 class Processing

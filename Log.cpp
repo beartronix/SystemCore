@@ -72,12 +72,6 @@ void levelLogSet(int lvl)
 	levelLog = lvl;
 }
 
-#include <stm32h5xx_hal.h>
-uint32_t millis()
-{
-	return HAL_GetTick();
-}
-
 void pFctLogEntryCreatedSet(LogEntryCreatedFct pFct)
 {
 	pFctLogEntryCreated = pFct;
