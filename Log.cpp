@@ -41,6 +41,8 @@
 
 #include "rtctime.h"
 
+#include "Processing.h"
+
 using namespace std;
 using namespace chrono;
 
@@ -129,10 +131,12 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 #endif
 	strftime(timeBuf, sizeof(timeBuf), "%d.%m.%y %H:%M:%S", &bt);
 
+	uint32_t ms = millis();
+	ms = ms % 1000;
 
 	// "%03d"
 //	pStart += snprintf(pStart, pEnd - pStart, "%s.000 +%3.3f %4d %3d  %-24s ", timeBuf, tDiffSec, line, severity, function);
-	pStart += snprintf(pStart, pEnd - pStart, "%s L%4d %s  %-24s ", timeBuf, line, severityToStr(severity), function);
+	pStart += snprintf(pStart, pEnd - pStart, "%s.%03d L%4d %s  %-24s ", timeBuf, (int)ms, line, severityToStr(severity), function);
 
 	va_start(args, msg);
 	pStart += vsnprintf(pStart, pEnd - pStart, msg, args);
