@@ -1416,13 +1416,6 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 
 /* static functions */
 
-uint32_t SystemCommanding::millis()
-{
-	auto now = steady_clock::now();
-	auto nowMs = time_point_cast<milliseconds>(now);
-	return (uint32_t)nowMs.time_since_epoch().count();
-}
-
 void SystemCommanding::cmdHelpPrint(char *pArgs, char *pBuf, char *pBufEnd)
 {
 	list<SystemCommand>::iterator iter;

@@ -169,7 +169,6 @@ private:
 	uint16_t mIdxColLineEnd;
 
 	/* static functions */
-	static uint32_t millis();
 	static void cmdHelpPrint(char *pArgs, char *pBuf, char *pBufEnd);
 	static void cmdHexDump(char *pArgs, char *pBuf, char *pBufEnd);
 	static size_t hexDumpPrint(char *pBuf, char *pBufEnd,
