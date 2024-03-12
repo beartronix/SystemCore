@@ -158,7 +158,9 @@ private:
 	uint16_t mIdxColLineEnd;
 
 	/* static functions */
+#if CONFIG_PROC_HAVE_CHRONO
 	static uint32_t millis();
+#endif
 	static void cmdHelpPrint(char *pArgs, char *pBuf, char *pBufEnd);
 	static void cmdHexDump(char *pArgs, char *pBuf, char *pBufEnd);
 	static size_t hexDumpPrint(char *pBuf, char *pBufEnd,

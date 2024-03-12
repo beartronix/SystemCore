@@ -29,7 +29,6 @@
 */
 
 #include <string.h>
-#include <chrono>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -53,8 +52,11 @@ dProcessStateEnum(ProcState);
 dProcessStateStr(ProcState);
 #endif
 
-using namespace std;
+#if CONFIG_PROC_HAVE_CHRONO
+#include <chrono>
 using namespace chrono;
+#endif
+using namespace std;
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
@@ -545,6 +547,8 @@ string TcpTransfering::errnoToStr(int num)
 	res = ::strerror_r(num, buf, len);
 	if (res)
 		*pBuf = 0;
+#elif defined(__ARM_EABI__)
+	pBuf = ::strerror(num);
 #else
 	pBuf = ::strerror_r(num, buf, len);
 #endif
@@ -564,13 +568,14 @@ void TcpTransfering::processInfo(char *pBuf, char *pBufEnd)
 }
 
 /* static functions */
-
+#if CONFIG_PROC_HAVE_CHRONO
 uint32_t TcpTransfering::millis()
 {
 	auto now = steady_clock::now();
 	auto nowMs = time_point_cast<milliseconds>(now);
 	return (uint32_t)nowMs.time_since_epoch().count();
 }
+#endif
 
 bool TcpTransfering::fileNonBlockingSet(SOCKET fd)
 {

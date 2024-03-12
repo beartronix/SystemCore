@@ -48,10 +48,14 @@
 #include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
+#ifndef LWIP
 #include <netinet/in.h>
+#endif
 #include <arpa/inet.h>
 #include <fcntl.h>
 #endif
+
+#include <string>
 
 #include "Processing.h"
 #include "Pipe.h"

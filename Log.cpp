@@ -29,7 +29,6 @@
 */
 
 #include <iostream>
-#include <chrono>
 #include <time.h>
 #include <stdarg.h>
 #if CONFIG_PROC_HAVE_DRIVERS
@@ -40,7 +39,15 @@
 #endif
 
 using namespace std;
+
+#if CONFIG_PROC_HAVE_CHRONO
+#include <chrono>
 using namespace chrono;
+#else
+#include <rtctime.h>
+#endif
+
+#include "Processing.h"
 
 typedef void (*LogEntryCreatedFct)(
 			const int severity,
@@ -56,7 +63,10 @@ static LogEntryCreatedFct pFctLogEntryCreated = NULL;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxPrint;
 #endif
+
+#if CONFIG_PROC_HAVE_CHRONO
 static system_clock::time_point tOld;
+#endif
 
 const string red("\033[0;31m");
 const string yellow("\033[0;33m");
@@ -73,6 +83,22 @@ void levelLogSet(int lvl)
 void pFctLogEntryCreatedSet(LogEntryCreatedFct pFct)
 {
 	pFctLogEntryCreated = pFct;
+}
+
+const char* severityToStr(const int severity)
+{
+	switch (severity)
+	{
+	case 1:
+		return "ERR";
+	case 2:
+		return "WRN";
+	case 3:
+		return "INF";
+	default:
+		break;
+	}
+	return "DBG";
 }
 
 int16_t logEntryCreate(const int severity, const char *filename, const char *function, const int line, const int16_t code, const char *msg, ...)
@@ -94,14 +120,18 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 	va_list args;
 
+#if CONFIG_PROC_HAVE_CHRONO
 	system_clock::time_point t = system_clock::now();
 	duration<long, nano> tDiff = t - tOld;
 	double tDiffSec = tDiff.count() / 10e9;
 	time_t tt_t = system_clock::to_time_t(t);
+	tOld = t;
+#else
+	time_t tt_t = getRtcTime();
+#endif
 	tm bt {};
 	char timeBuf[32];
 
-	tOld = t;
 #ifdef _WIN32
 	::localtime_s(&bt, &tt_t);
 #else
@@ -110,7 +140,7 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 	strftime(timeBuf, sizeof(timeBuf), "%d.%m.%y %H:%M:%S", &bt);
 
 	// "%03d"
-	pStart += snprintf(pStart, pEnd - pStart, "%s.000 +%3.3f %4d %3d  %-24s ", timeBuf, tDiffSec, line, severity, function);
+	pStart += snprintf(pStart, pEnd - pStart, "%s.%03d L%4d %s  %-24s ", timeBuf, millis()%1000, line, severityToStr(severity), function);
 
 	va_start(args, msg);
 	pStart += vsnprintf(pStart, pEnd - pStart, msg, args);
@@ -138,12 +168,14 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 		SetConsoleTextAttribute(hConsole, 7);
 #else
+#if 0
 		if (severity == 1)
 			cerr << "\033[31m" << pBuf << "\033[37m" << "\r\n" << flush;
 		else
 		if (severity == 2)
 			cerr << "\033[33m" << pBuf << "\033[37m" << "\r\n" << flush;
 		else
+#endif
 			cout << pBuf << "\r\n" << flush;
 #endif
 	}

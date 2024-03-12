@@ -31,7 +31,6 @@
 #include <string.h>
 #include <cstdint>
 #include <cinttypes>
-#include <chrono>
 
 #include "SystemCommanding.h"
 
@@ -97,8 +96,11 @@ if (key == k) \
 
 // --------------------
 
-using namespace std;
+#if CONFIG_PROC_HAVE_CHRONO
+#include <chrono>
 using namespace chrono;
+#endif
+using namespace std;
 
 #define LOG_LVL	0
 
@@ -1415,13 +1417,14 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 }
 
 /* static functions */
-
+#if CONFIG_PROC_HAVE_CHRONO
 uint32_t SystemCommanding::millis()
 {
 	auto now = steady_clock::now();
 	auto nowMs = time_point_cast<milliseconds>(now);
 	return (uint32_t)nowMs.time_since_epoch().count();
 }
+#endif
 
 void SystemCommanding::cmdHelpPrint(char *pArgs, char *pBuf, char *pBufEnd)
 {

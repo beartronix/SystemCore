@@ -35,7 +35,9 @@
 
 #include <list>
 #include <queue>
-#include <chrono>
+#if CONFIG_PROC_HAVE_CHRONO
+
+#endif
 #if DEBUG_PIPE
 #include <iostream>
 #endif
@@ -55,7 +57,13 @@
     - toPushTry()                  .. Try to push particles to children
 */
 
+#if CONFIG_PROC_HAVE_CHRONO
+#include <chrono>
 #define nowMs()		((uint32_t)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+#else
+#include "time.hpp" // ??? my own implementation... otherwise need to include "stm32h5xx.h" or similar sh*t
+#define nowMs() HAL_GetTick()
+#endif
 
 typedef uint32_t ParticleTime;
 

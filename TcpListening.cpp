@@ -263,6 +263,8 @@ string TcpListening::errnoToStr(int num)
 	res = ::strerror_r(num, buf, len);
 	if (res)
 		*pBuf = 0;
+#elif defined(__ARM_EABI__) // no idea if this is the right define... but it works for STM32
+	pBuf = ::strerror(num);
 #else
 	pBuf = ::strerror_r(num, buf, len);
 #endif

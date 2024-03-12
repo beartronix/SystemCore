@@ -95,6 +95,11 @@
 #define CONFIG_PROC_DISABLE_TREE_DEFAULT		0
 #endif
 
+#ifndef CONFIG_PROC_HAVE_CHRONO
+#define CONFIG_PROC_HAVE_CHRONO					0
+#endif
+
+
 #if CONFIG_PROC_HAVE_LIB_STD_C
 #include <stdint.h>
 #include <string.h>
@@ -107,10 +112,25 @@
 #endif
 
 #if CONFIG_PROC_HAVE_DRIVERS
-#include <thread>
+#ifdef __STDCPP_THREADS__
 #include <mutex>
+#include <thread>
+typedef std::lock_guard<std::mutex> Guard;
+#else
+#include "thread.hpp"
+#include "mutex.hpp"
+namespace std {
+using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
+using thread = cpp_freertos::Thread;
+template <typename T>
+using lock_guard = cpp_freertos::LockGuard;
+}
+#endif
 typedef std::lock_guard<std::mutex> Guard;
 #endif
+
+uint32_t millis();
+uint32_t micros();
 
 enum DriverMode
 {

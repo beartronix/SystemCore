@@ -48,7 +48,9 @@
 #include <ws2tcpip.h>
 #else
 #include <sys/socket.h>
+#ifndef LWIP
 #include <netinet/in.h>
+#endif
 #include <arpa/inet.h>
 #include <fcntl.h>
 #endif
@@ -137,7 +139,9 @@ private:
 	size_t mBytesSent;
 
 	/* static functions */
+#if CONFIG_PROC_HAVE_CHRONO
 	static uint32_t millis();
+#endif
 	static bool fileNonBlockingSet(SOCKET fd);
 #ifdef _WIN32
 	static void globalWsaDestruct();
