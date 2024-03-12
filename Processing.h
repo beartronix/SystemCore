@@ -107,10 +107,31 @@
 #endif
 
 #if CONFIG_PROC_HAVE_DRIVERS
-#include <thread>
+#ifdef __STDCPP_THREADS__
 #include <mutex>
+#include <thread>
+typedef std::lock_guard<std::mutex> Guard;
+#else
+#include "thread.hpp"
+#include "mutex.hpp"
+namespace std {
+using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
+using thread = cpp_freertos::Thread;
+template <typename T>
+using lock_guard = cpp_freertos::LockGuard;
+}
+#endif
 typedef std::lock_guard<std::mutex> Guard;
 #endif
+
+#if CONFIG_PROC_HAVE_DRIVERS
+#include <thread>
+#include <mutex>
+
+#endif
+
+uint32_t millis();
+uint32_t micros();
 
 enum DriverMode
 {
@@ -301,8 +322,6 @@ inline int16_t logEntryCreateDummy(
 #define procWrnLog(m, ...)				(wrnLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 #define procInfLog(m, ...)				(infLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 #define procDbgLog(l, m, ...)				(dbgLog(GLOBAL_PROC_LOG_LEVEL_OFFSET + l, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
-
-uint32_t millis();
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
 #define dInfoDebugPrefix

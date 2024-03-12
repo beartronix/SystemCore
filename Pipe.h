@@ -40,16 +40,6 @@
 #include <iostream>
 #endif
 
-#ifdef __STDCPP_THREADS__
-#include <mutex>
-#else
-#include "mutex.hpp"
-namespace std {
-using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
-template <typename T>
-using lock_guard = cpp_freertos::LockGuard;
-}
-#endif
 
 #include "Processing.h"
 
