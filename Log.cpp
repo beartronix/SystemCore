@@ -29,7 +29,7 @@
 */
 
 #include <iostream>
-#include <chrono>
+//#include <chrono>
 #include <time.h>
 #include <stdarg.h>
 #if CONFIG_PROC_HAVE_DRIVERS
@@ -44,7 +44,7 @@
 #include "Processing.h"
 
 using namespace std;
-using namespace chrono;
+//using namespace chrono;
 
 typedef void (*LogEntryCreatedFct)(
 			const int severity,
@@ -60,7 +60,7 @@ static LogEntryCreatedFct pFctLogEntryCreated = NULL;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxPrint;
 #endif
-static system_clock::time_point tOld;
+//static system_clock::time_point tOld;
 
 const string red("\033[0;31m");
 const string yellow("\033[0;33m");
@@ -114,16 +114,17 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 	va_list args;
 
-	system_clock::time_point t = system_clock::from_time_t(getRtcTime());
-	duration<long, nano> tDiff = t - tOld;
+//	system_clock::time_point t = system_clock::from_time_t(getRtcTime());
+//	duration<long, nano> tDiff = t - tOld;
 #if 0
 	double tDiffSec = tDiff.count() / 10e9;
 #endif
-	time_t tt_t = system_clock::to_time_t(t);
+//	time_t tt_t = system_clock::to_time_t(t);
+	time_t tt_t = getRtcTime();
 	tm bt {};
 	char timeBuf[32];
 
-	tOld = t;
+//	tOld = t;
 #ifdef _WIN32
 	::localtime_s(&bt, &tt_t);
 #else
@@ -164,17 +165,12 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 		SetConsoleTextAttribute(hConsole, 7);
 #else
-#if 0
-		if (severity == 1)
-			cerr << "\033[31m" << pBuf << "\033[37m" << "\r\n" << flush;
-		else
-		if (severity == 2)
-			cerr << "\033[33m" << pBuf << "\033[37m" << "\r\n" << flush;
-		else
-			cout << pBuf << "\r\n" << std::flush;
-#else
-		cout << pBuf << "\r\n" << std::flush;
-#endif
+//		if (severity == 1)
+//			cerr << "\033[31m" << pBuf << "\033[37m" << "\r\n" << flush;
+//		else if (severity == 2)
+//			cerr << "\033[33m" << pBuf << "\033[37m" << "\r\n" << flush;
+//		else
+			cout << pBuf << "\r\n" << flush;
 #endif
 	}
 
