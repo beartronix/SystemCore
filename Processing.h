@@ -129,8 +129,8 @@ using lock_guard = cpp_freertos::LockGuard;
 typedef std::lock_guard<std::mutex> Guard;
 #endif
 
-uint32_t millis();
-uint32_t micros();
+extern "C" uint32_t millis();
+extern "C" uint32_t micros();
 
 enum DriverMode
 {
