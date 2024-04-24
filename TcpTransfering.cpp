@@ -52,11 +52,11 @@ dProcessStateEnum(ProcState);
 dProcessStateStr(ProcState);
 #endif
 
+using namespace std;
 #if CONFIG_PROC_HAVE_CHRONO
 #include <chrono>
 using namespace chrono;
 #endif
-using namespace std;
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0

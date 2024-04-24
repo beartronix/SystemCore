@@ -96,11 +96,11 @@ if (key == k) \
 
 // --------------------
 
+using namespace std;
 #if CONFIG_PROC_HAVE_CHRONO
 #include <chrono>
 using namespace chrono;
 #endif
-using namespace std;
 
 #define LOG_LVL	0
 

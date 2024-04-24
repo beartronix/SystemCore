@@ -111,13 +111,19 @@
 #include <list>
 #endif
 
+// #if CONFIG_PROC_HAVE_DRIVERS
+// #include <thread>
+// #include <mutex>
+// typedef std::lock_guard<std::mutex> Guard;
+// #endif
+
 #if CONFIG_PROC_HAVE_DRIVERS
 #ifdef __STDCPP_THREADS__
 #include <mutex>
 #include <thread>
 typedef std::lock_guard<std::mutex> Guard;
 #else
-#include "thread.hpp"
+#include "thread.hpp" // TODO threads not working yet for stm32/freertos-addons
 #include "mutex.hpp"
 namespace std {
 using mutex = cpp_freertos::MutexStandard; // from https://github.com/michaelbecker/freertos-addons
@@ -320,11 +326,11 @@ inline int16_t logEntryCreateDummy(
 #define infLog(m, ...)					(genericLog(3, 0, m, ##__VA_ARGS__))
 #define dbgLog(l, m, ...)				(genericLog(4 + l, 0, m, ##__VA_ARGS__))
 
-#define GLOBAL_PROC_LOG_LEVEL_OFFSET		0
-#define procErrLog(c, m, ...)				(errLog(c, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
+#define GLOBAL_PROC_LOG_LEVEL_OFFSET	0
+#define procErrLog(c, m, ...)			(errLog(c, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 #define procWrnLog(m, ...)				(wrnLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 #define procInfLog(m, ...)				(infLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
-#define procDbgLog(l, m, ...)				(dbgLog(GLOBAL_PROC_LOG_LEVEL_OFFSET + l, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
+#define procDbgLog(l, m, ...)			(dbgLog(GLOBAL_PROC_LOG_LEVEL_OFFSET + l, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
 #define dInfoDebugPrefix

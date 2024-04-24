@@ -50,9 +50,9 @@
 #include <sys/socket.h>
 #ifndef LWIP
 #include <netinet/in.h>
+#include <fcntl.h>
 #endif
 #include <arpa/inet.h>
-#include <fcntl.h>
 #endif
 
 /* Literature

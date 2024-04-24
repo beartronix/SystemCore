@@ -35,9 +35,6 @@
 
 #include <list>
 #include <queue>
-#if CONFIG_PROC_HAVE_CHRONO
-
-#endif
 #if DEBUG_PIPE
 #include <iostream>
 #endif

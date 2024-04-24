@@ -49,10 +49,10 @@
 #else
 #include <sys/socket.h>
 #ifndef LWIP
-#include <netinet/in.h>
+#include <netinet/in.h> // LWIP incorporated contents of <netinet/in.h> in <sys/socket.h>
+#include <fcntl.h> // in LWIP, fcntl.h conflicts O_NONBLOCK (and other) declarations.
 #endif
 #include <arpa/inet.h>
-#include <fcntl.h>
 #endif
 
 #include <string>

@@ -44,7 +44,7 @@ using namespace std;
 #include <chrono>
 using namespace chrono;
 #else
-#include <time.hpp>
+#include "time.hpp" // ??? my own implementation... otherwise need to include "stm32h5xx.h" or similar sh*t
 #endif
 
 #include "Processing.h"
@@ -70,6 +70,7 @@ static system_clock::time_point tOld;
 
 const string red("\033[0;31m");
 const string yellow("\033[0;33m");
+const string green("\033[0;32m");
 const string reset("\033[0m");
 
 const size_t cLogEntryBufferSize = 1024;
@@ -127,7 +128,7 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 	time_t tt_t = system_clock::to_time_t(t);
 	tOld = t;
 #else
-	time_t tt_t = getRtcTime();
+	time_t tt_t = getRtcTime(); // from time.hpp...
 #endif
 	tm bt {};
 	char timeBuf[32];
@@ -168,15 +169,15 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 		SetConsoleTextAttribute(hConsole, 7);
 #else
-#if 0
+#if 1
 		if (severity == 1)
-			cerr << "\033[31m" << pBuf << "\033[37m" << "\r\n" << flush;
+			cerr << red << pBuf << reset << "\r\n" << flush;
 		else
 		if (severity == 2)
-			cerr << "\033[33m" << pBuf << "\033[37m" << "\r\n" << flush;
+			cerr << yellow << pBuf << reset << "\r\n" << flush;
 		else
 #endif
-			cout << pBuf << "\r\n" << flush;
+			cout << green << pBuf << reset << "\r\n" << flush;
 #endif
 	}
 
