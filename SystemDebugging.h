@@ -73,6 +73,8 @@ public:
 	void portStartSet(uint16_t port);
 	static void levelLogSet(int lvl);
 
+	const std::string& processTree() const { return mProcTree; }
+
 protected:
 
 	SystemDebugging() : Processing("SystemDebugging") {}

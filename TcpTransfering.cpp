@@ -41,6 +41,7 @@
 		gen(StCltStart) \
 		gen(StCltArgCheck) \
 		gen(StCltConnDoneWait) \
+		gen(StCltConnStatusCheck) \
 		gen(StConnMain) \
 		gen(StTmp) \
 
@@ -127,7 +128,7 @@ Success TcpTransfering::process()
 	int res, numErr = 0;
 	ssize_t connCheck;
 	bool ok;
-#if 0
+#if 1
 	dStateTrace;
 #endif
 	switch (mState)
@@ -202,6 +203,12 @@ Success TcpTransfering::process()
 			if (numErr == WSAEWOULDBLOCK || numErr == WSAEINPROGRESS)
 				break;
 #else
+			if (numErr == EINPROGRESS)
+			{
+				// https://stackoverflow.com/questions/71282114/how-to-program-non-blocking-socket-on-connect-and-select
+				mState = StCltConnStatusCheck;
+				return Pending;
+			}
 			if (numErr == EWOULDBLOCK ||
 				numErr == EALREADY ||
 				numErr == EINPROGRESS ||
@@ -221,6 +228,45 @@ Success TcpTransfering::process()
 		mState = StConnMain;
 
 		break;
+	case StCltConnStatusCheck:
+	{
+		struct pollfd pfd;
+		pfd.fd = mSocketFd;
+		pfd.events = POLLOUT;
+		pfd.revents = 0;
+
+		if (!poll(&pfd, 1, 1))
+			break;
+
+		if (!(pfd.revents & POLLOUT))
+			break;
+
+		// POLLOUT means we can write to the socket, which means connection is finished (success or failed)
+		struct sockaddr_in peer;
+		socklen_t len = sizeof(peer);
+		memset(&peer, 0, len);
+		if (getpeername(mSocketFd, (struct sockaddr*)&peer, &len) != 0)
+		{
+			int numErr = errGet();
+			return procErrLog(-1, "connection to host failed: %s (%d)",
+							errnoToStr(numErr).c_str(), numErr);
+		}
+
+		addrInfoSet();
+
+		char ipStr[16];
+		inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
+		procInfLog("Connection established to %s:%d", ipStr, (int)ntohs(peer.sin_port));
+
+		success = socketOptionsSet();
+		if (success != Positive)
+			return procErrLog(-1, "could not set socket options");
+
+		mSendReady = true;
+
+		mState = StConnMain;
+		break;
+	}
 	case StConnMain:
 
 		if (mDone)
@@ -464,8 +510,6 @@ Success TcpTransfering::socketOptionsSet()
 	int res;
 	bool ok;
 
-	addrInfoSet();
-
 	res = ::setsockopt(mSocketFd, SOL_SOCKET, SO_KEEPALIVE, (const char *)&opt, sizeof(opt));
 	if (res)
 		return procErrLog(-2, "setsockopt(SO_KEEPALIVE) failed: %s",
@@ -474,6 +518,12 @@ Success TcpTransfering::socketOptionsSet()
 	ok = fileNonBlockingSet(mSocketFd);
 	if (!ok)
 		return procErrLog(-3, "could not set non blocking mode: %s",
+							errnoToStr(errGet()).c_str());
+
+
+	res = ::setsockopt(mSocketFd, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(opt));
+	if (res)
+		return procErrLog(-4, "setsockopt(SO_REUSEADDR) failed: %s",
 							errnoToStr(errGet()).c_str());
 
 	mReadReady = true;
