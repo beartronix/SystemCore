@@ -71,6 +71,7 @@ static system_clock::time_point tOld;
 const string red("\033[0;31m");
 const string yellow("\033[0;33m");
 const string green("\033[0;32m");
+const string cyan("\033[0;36m");
 const string reset("\033[0m");
 
 const size_t cLogEntryBufferSize = 1024;
@@ -138,7 +139,7 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 #else
 	::localtime_r(&tt_t, &bt);
 #endif
-	strftime(timeBuf, sizeof(timeBuf), "%d.%m.%y %H:%M:%S", &bt);
+	strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &bt);
 
 	// "%03d"
 	pStart += snprintf(pStart, pEnd - pStart, "%s.%03d L%4d %s  %-24s ", timeBuf, (int)(millis()%1000), line, severityToStr(severity), function);
@@ -176,8 +177,11 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 		if (severity == 2)
 			cerr << yellow << pBuf << reset << "\r\n" << flush;
 		else
-#endif
+		if (severity == 3)
 			cout << green << pBuf << reset << "\r\n" << flush;
+		else
+#endif
+			cout << cyan << pBuf << reset << "\r\n" << flush;
 #endif
 	}
 

@@ -495,10 +495,11 @@ void TcpTransfering::disconnect(int err)
 #ifdef _WIN32
 	::closesocket(mSocketFd);
 #else
-	::close(mSocketFd);
+	if (::close(mSocketFd) < 0)
+		procErrLog(-1, "close(): %s", errnoToStr(errGet()).c_str());
 #endif
 	mSocketFd = INVALID_SOCKET;
-	procDbgLog(LOG_LVL, "closing socket: %d: done", mSocketFd);
+//	procDbgLog(LOG_LVL, "closing socket: %d: done", mSocketFd);
 }
 
 Success TcpTransfering::socketOptionsSet()
