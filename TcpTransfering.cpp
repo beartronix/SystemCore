@@ -63,7 +63,7 @@ using namespace chrono;
 #define MSG_NOSIGNAL 0
 #endif
 
-#define LOG_LVL	0
+#define LOG_LVL	1
 
 #ifdef _WIN32
 #if CONFIG_PROC_HAVE_DRIVERS
