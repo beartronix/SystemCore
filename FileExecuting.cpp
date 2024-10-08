@@ -59,7 +59,7 @@ dProcessStateStr(ProcState);
 
 using namespace std;
 
-#define LOG_LVL	0
+#define LOG_LVL	-1
 
 FileExecuting::FileExecuting()
 	: Transfering("FileExecuting")
