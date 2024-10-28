@@ -7,7 +7,7 @@
 
   File created on 21.05.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -89,6 +89,10 @@ public:
 #ifdef _WIN32
 	static bool wsaInit();
 #endif
+	static bool sockaddrInfoGet(struct sockaddr_storage &addr,
+							std::string &strAddr,
+							uint16_t &numPort,
+							bool &isIPv6);
 
 protected:
 
@@ -116,7 +120,9 @@ private:
 
 	void disconnect(int err = 0);
 	Success socketOptionsSet();
+	Success connClientDone();
 	void addrInfoSet();
+	struct sockaddr_storage *addrStringToSock(const std::string &strAddr, uint16_t numPort);
 
 	int errGet();
 	std::string errnoToStr(int num);
@@ -129,17 +135,19 @@ private:
 #endif
 	SOCKET mSocketFd;
 	std::string mHostAddrStr;
-	struct sockaddr_in mHostAddr;
 	uint16_t mHostPort;
+	struct sockaddr_storage *mpHostAddr;
 	int mErrno;
 	bool mInfoSet;
+	bool mIsIPv6Local;
+	bool mIsIPv6Remote;
 
 	// statistics
 	size_t mBytesReceived;
 	size_t mBytesSent;
 
 	/* static functions */
-#if CONFIG_PROC_HAVE_CHRONO
+#if 0
 	static uint32_t millis();
 #endif
 	static bool fileNonBlockingSet(SOCKET fd);

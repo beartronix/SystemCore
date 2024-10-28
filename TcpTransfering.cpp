@@ -7,7 +7,7 @@
 
   File created on 21.05.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -29,11 +29,20 @@
 */
 
 #include <string.h>
+#include <chrono>
 #ifndef _WIN32
 #include <unistd.h>
+#ifdef __linux
+#include <sys/poll.h>
+#endif
+#ifdef LWIP
+#include <arpa/inet.h>
+#endif
 #endif
 
 #include "TcpTransfering.h"
+
+#include "time.hpp" // millis()
 
 #define dForEach_ProcState(gen) \
 		gen(StSrvStart) \
@@ -41,29 +50,26 @@
 		gen(StCltStart) \
 		gen(StCltArgCheck) \
 		gen(StCltConnDoneWait) \
-		gen(StCltConnStatusCheck) \
+		gen(StCltConnDone) \
 		gen(StConnMain) \
 		gen(StTmp) \
 
 #define dGenProcStateEnum(s) s,
 dProcessStateEnum(ProcState);
 
-#if 1
+#if 0
 #define dGenProcStateString(s) #s,
 dProcessStateStr(ProcState);
 #endif
 
 using namespace std;
-#if CONFIG_PROC_HAVE_CHRONO
-#include <chrono>
 using namespace chrono;
-#endif
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
 
-#define LOG_LVL	1
+#define LOG_LVL	0
 
 #ifdef _WIN32
 #if CONFIG_PROC_HAVE_DRIVERS
@@ -83,8 +89,12 @@ TcpTransfering::TcpTransfering(SOCKET fd)
 	, mStartMs(0)
 	, mSocketFd(fd)
 	, mHostAddrStr("")
+	, mHostPort(0)
+	, mpHostAddr(NULL)
 	, mErrno(0)
 	, mInfoSet(false)
+	, mIsIPv6Local(false)
+	, mIsIPv6Remote(false)
 	, mBytesReceived(0)
 	, mBytesSent(0)
 {
@@ -95,7 +105,7 @@ TcpTransfering::TcpTransfering(SOCKET fd)
 
 // strAddrHost can be
 // - IPv4
-// - IPv6 (TODO)
+// - IPv6
 // - Domain (TODO)
 TcpTransfering::TcpTransfering(const string &hostAddr, uint16_t hostPort)
 	: Transfering("TcpTransfering")
@@ -103,8 +113,11 @@ TcpTransfering::TcpTransfering(const string &hostAddr, uint16_t hostPort)
 	, mSocketFd(INVALID_SOCKET)
 	, mHostAddrStr(hostAddr)
 	, mHostPort(hostPort)
+	, mpHostAddr(NULL)
 	, mErrno(0)
 	, mInfoSet(false)
+	, mIsIPv6Local(false)
+	, mIsIPv6Remote(false)
 	, mBytesReceived(0)
 	, mBytesSent(0)
 {
@@ -128,7 +141,7 @@ Success TcpTransfering::process()
 	int res, numErr = 0;
 	ssize_t connCheck;
 	bool ok;
-#if 1
+#if 0
 	dStateTrace;
 #endif
 	switch (mState)
@@ -164,17 +177,19 @@ Success TcpTransfering::process()
 		break;
 	case StCltArgCheck:
 
+		// create local address structure
+
 		if (mHostAddrStr == "localhost")
 			mHostAddrStr = "127.0.0.1";
 
-		memset(&mHostAddr, 0, sizeof(mHostAddr));
-
-		res = inet_pton(AF_INET, mHostAddrStr.c_str(), &mHostAddr.sin_addr);
-		if (res < 1)
-			return procErrLog(-1, "invalid argument. Only IPv4 address supported by now. Given: '%s'",
+		mpHostAddr = addrStringToSock(mHostAddrStr, mHostPort);
+		if (!mpHostAddr)
+			return procErrLog(-1, "could not parse IP address. Given: '%s'",
 					mHostAddrStr.c_str());
 
-		mSocketFd = socket(AF_INET, SOCK_STREAM, 0);
+		// create and configure socket
+
+		mSocketFd = socket(mpHostAddr->ss_family, SOCK_STREAM, 0);
 		if (mSocketFd == INVALID_SOCKET)
 			return procErrLog(-1, "could not create socket: %s",
 							errnoToStr(errGet()).c_str());
@@ -183,11 +198,31 @@ Success TcpTransfering::process()
 		if (success != Positive)
 			return procErrLog(-1, "could not set socket options");
 
-		mHostAddr.sin_family = AF_INET;
-		mHostAddr.sin_port = htons(mHostPort);
+		res = connect(mSocketFd, (struct sockaddr *)mpHostAddr, sizeof(*mpHostAddr));
 
-		mStartMs = curTimeMs;
-		mState = StCltConnDoneWait;
+		free(mpHostAddr);
+		mpHostAddr = NULL;
+
+		if (!res)
+		{
+			mState = StCltConnDone;
+			break;
+		}
+
+		numErr = errGet();
+#ifdef _WIN32
+		if (numErr == WSAEINPROGRESS)
+#else
+		if (numErr == EINPROGRESS)
+#endif
+		{
+			mStartMs = curTimeMs;
+			mState = StCltConnDoneWait;
+			break;
+		}
+
+		return procErrLog(-1, "could not connect to host: %s (%d)",
+						errnoToStr(numErr).c_str(), numErr);
 
 		break;
 	case StCltConnDoneWait:
@@ -195,78 +230,24 @@ Success TcpTransfering::process()
 		if (diffMs > dTmoDefaultConnDoneMs)
 			return procErrLog(-1, "timeout connecting to host");
 
-		res = connect(mSocketFd, (struct sockaddr *)&mHostAddr, sizeof(mHostAddr));
-		if (res)
-		{
-			numErr = errGet();
-#ifdef _WIN32
-			if (numErr == WSAEWOULDBLOCK || numErr == WSAEINPROGRESS)
-				break;
-#else
-			if (numErr == EINPROGRESS)
-			{
-				// https://stackoverflow.com/questions/71282114/how-to-program-non-blocking-socket-on-connect-and-select
-				mState = StCltConnStatusCheck;
-				return Pending;
-			}
-			if (numErr == EWOULDBLOCK ||
-				numErr == EALREADY ||
-				numErr == EINPROGRESS ||
-				numErr == EAGAIN)
-				break;
-#endif
-			return procErrLog(-1, "could not connect to host: %s (%d)",
-							errnoToStr(numErr).c_str(), numErr);
-		}
+		success = connClientDone();
+		if (success == Pending)
+			break;
 
-		success = socketOptionsSet();
 		if (success != Positive)
-			return procErrLog(-1, "could not set socket options");
+			return procErrLog(-1, "client connect failed");
 
-		mSendReady = true;
-
-		mState = StConnMain;
+		mState = StCltConnDone;
 
 		break;
-	case StCltConnStatusCheck:
-	{
-		struct pollfd pfd;
-		pfd.fd = mSocketFd;
-		pfd.events = POLLOUT;
-		pfd.revents = 0;
-
-		if (!poll(&pfd, 1, 1))
-			break;
-
-		if (!(pfd.revents & POLLOUT))
-			break;
-
-		// POLLOUT means we can write to the socket, which means connection is finished (success or failed)
-		struct sockaddr_in peer;
-		socklen_t len = sizeof(peer);
-		memset(&peer, 0, len);
-		if (getpeername(mSocketFd, (struct sockaddr*)&peer, &len) != 0)
-		{
-			int numErr = errGet();
-			return procErrLog(-1, "connection to host failed: %s (%d)",
-							errnoToStr(numErr).c_str(), numErr);
-		}
+	case StCltConnDone:
 
 		addrInfoSet();
-
-		char ipStr[16];
-		inet_ntop(AF_INET, &peer.sin_addr, ipStr, sizeof(ipStr));
-		procInfLog("Connection established to %s:%d", ipStr, (int)ntohs(peer.sin_port));
-
-		success = socketOptionsSet();
-		if (success != Positive)
-			return procErrLog(-1, "could not set socket options");
-
 		mSendReady = true;
 
 		mState = StConnMain;
+
 		break;
-	}
 	case StConnMain:
 
 		if (mDone)
@@ -296,6 +277,13 @@ Success TcpTransfering::process()
 Success TcpTransfering::shutdown()
 {
 	procDbgLog(LOG_LVL, "shutdown");
+
+	if (mpHostAddr)
+	{
+		free(mpHostAddr);
+		mpHostAddr = NULL;
+	}
+
 #if CONFIG_PROC_HAVE_DRIVERS
 	Guard lock(mSocketFdMtx);
 #endif
@@ -495,11 +483,10 @@ void TcpTransfering::disconnect(int err)
 #ifdef _WIN32
 	::closesocket(mSocketFd);
 #else
-	if (::close(mSocketFd) < 0)
-		procErrLog(-1, "close(): %s", errnoToStr(errGet()).c_str());
+	::close(mSocketFd);
 #endif
 	mSocketFd = INVALID_SOCKET;
-//	procDbgLog(LOG_LVL, "closing socket: %d: done", mSocketFd);
+	procDbgLog(LOG_LVL, "closing socket: %d: done", mSocketFd);
 }
 
 Success TcpTransfering::socketOptionsSet()
@@ -507,10 +494,11 @@ Success TcpTransfering::socketOptionsSet()
 #if CONFIG_PROC_HAVE_DRIVERS
 	Guard lock(mSocketFdMtx);
 #endif
-	int opt = 1;
+	int opt;
 	int res;
 	bool ok;
 
+	opt = 1;
 	res = ::setsockopt(mSocketFd, SOL_SOCKET, SO_KEEPALIVE, (const char *)&opt, sizeof(opt));
 	if (res)
 		return procErrLog(-2, "setsockopt(SO_KEEPALIVE) failed: %s",
@@ -521,13 +509,61 @@ Success TcpTransfering::socketOptionsSet()
 		return procErrLog(-3, "could not set non blocking mode: %s",
 							errnoToStr(errGet()).c_str());
 
+	mReadReady = true;
 
-	res = ::setsockopt(mSocketFd, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(opt));
+	return Positive;
+}
+
+/* Literature
+ * - https://man7.org/linux/man-pages/man2/connect.2.html
+ * - https://man7.org/linux/man-pages/man2/select.2.html
+ * - https://man7.org/linux/man-pages/man2/poll.2.html
+ * - https://man7.org/linux/man-pages/man2/getsockopt.2.html
+ * - https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-select
+ * - https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsapoll
+ * - https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-getsockopt
+ */
+Success TcpTransfering::connClientDone()
+{
+#ifdef _WIN32
+	WSAPOLLFD fds[1];
+#else
+	struct pollfd fds[1];
+#endif
+	int res;
+
+	fds[0].fd = mSocketFd;
+	fds[0].events = POLLOUT;
+#ifdef _WIN32
+	res = WSAPoll(fds, 1, 0);
+#else
+	res = poll(fds, 1, 0);
+#endif
+	if (!res)
+		return Pending;
+
+	if (res < 0)
+		return procErrLog(-1, "could not poll socket: %s",
+						errnoToStr(errGet()).c_str());
+
+	if (!(fds[0].revents & POLLOUT))
+		return procErrLog(-1, "didn't get POLLOUT event");
+
+	int errSock;
+#ifdef _WIN32
+	int len = sizeof(errSock);
+	res = ::getsockopt(mSocketFd, SOL_SOCKET, SO_ERROR, (char *)&errSock, &len);
+#else
+	socklen_t len = sizeof(errSock);
+	res = ::getsockopt(mSocketFd, SOL_SOCKET, SO_ERROR, &errSock, &len);
+#endif
 	if (res)
-		return procErrLog(-4, "setsockopt(SO_REUSEADDR) failed: %s",
+		return procErrLog(-2, "getsockopt(SO_ERROR) failed: %s",
 							errnoToStr(errGet()).c_str());
 
-	mReadReady = true;
+	if (errSock)
+		return procErrLog(-2, "socket error (%d): %s",
+							errSock, errnoToStr(errSock).c_str());
 
 	return Positive;
 }
@@ -550,26 +586,77 @@ void TcpTransfering::addrInfoSet()
 	if (mSocketFd == INVALID_SOCKET)
 		return;
 
-	struct sockaddr_in addr;
+	struct sockaddr_storage addr;
 	socklen_t addrLen;
-	char buf[128];
-	size_t len = sizeof(buf) - 1;
+	int res;
+	bool ok;
 
 	memset(&addr, 0, sizeof(addr));
-
 	addrLen = sizeof(addr);
-	::getsockname(mSocketFd, (struct sockaddr*)&addr, &addrLen);
-	::inet_ntop(addr.sin_family, &addr.sin_addr, buf, len);
-	mAddrLocal = string(buf);
-	mPortLocal = ntohs(addr.sin_port);
 
+	res = ::getsockname(mSocketFd, (struct sockaddr *)&addr, &addrLen);
+#ifdef _WIN32
+	if (res == SOCKET_ERROR)
+		return;
+#else
+	if (res == -1)
+		return;
+#endif
+	ok = sockaddrInfoGet(addr, mAddrLocal, mPortLocal, mIsIPv6Local);
+	if (!ok)
+		return;
+
+	// -----------------
+
+	memset(&addr, 0, sizeof(addr));
 	addrLen = sizeof(addr);
-	::getpeername(mSocketFd, (struct sockaddr*)&addr, &addrLen);
-	::inet_ntop(addr.sin_family, &addr.sin_addr, buf, len);
-	mAddrRemote = string(buf);
-	mPortRemote = ntohs(addr.sin_port);
+
+	res = ::getpeername(mSocketFd, (struct sockaddr *)&addr, &addrLen);
+#ifdef _WIN32
+	if (res == SOCKET_ERROR)
+		return;
+#else
+	if (res == -1)
+		return;
+#endif
+	sockaddrInfoGet(addr, mAddrRemote, mPortRemote, mIsIPv6Remote);
+	if (!ok)
+		return;
 
 	mInfoSet = true;
+}
+
+struct sockaddr_storage *TcpTransfering::addrStringToSock(const string &strAddr, uint16_t numPort)
+{
+	struct sockaddr_storage *pAddr;
+
+	pAddr = (struct sockaddr_storage *)calloc(1, sizeof(struct sockaddr_storage));
+	if (!pAddr)
+		return NULL;
+
+	struct sockaddr_in *pAddr4 = (struct sockaddr_in *)pAddr;
+
+	if (inet_pton(AF_INET, strAddr.c_str(), &pAddr4->sin_addr) == 1)
+	{
+		pAddr4->sin_family = AF_INET;
+		pAddr4->sin_port = htons(numPort);
+	}
+#if defined(LWIP) && LWIP_IPV6
+	else
+	struct sockaddr_in6 *pAddr6 = (struct sockaddr_in6 *)pAddr;
+	if (inet_pton(AF_INET6, strAddr.c_str(), &pAddr6->sin6_addr) == 1)
+	{
+		pAddr6->sin6_family = AF_INET6;
+		pAddr6->sin6_port = htons(numPort);
+	}
+#endif
+	else
+	{
+		free(pAddr);
+		return NULL;
+	}
+
+	return pAddr;
 }
 
 int TcpTransfering::errGet()
@@ -593,12 +680,13 @@ string TcpTransfering::errnoToStr(int num)
 #if defined(_WIN32)
 	errno_t numErr = ::strerror_s(buf, len, num);
 	(void)numErr;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__APPLE__)
 	int res;
 	res = ::strerror_r(num, buf, len);
 	if (res)
 		*pBuf = 0;
-#elif defined(__ARM_EABI__)
+
+#elif defined(LWIP)
 	pBuf = ::strerror(num);
 #else
 	pBuf = ::strerror_r(num, buf, len);
@@ -608,18 +696,73 @@ string TcpTransfering::errnoToStr(int num)
 
 void TcpTransfering::processInfo(char *pBuf, char *pBufEnd)
 {
-	dInfo("State\t\t\t%s\n", ProcStateString[mState]);
+	//dInfo("State\t\t\t%s\n", ProcStateString[mState]);
 	dInfo("Bytes received\t\t%d\n", (int)mBytesReceived);
 
 	if (!mInfoSet)
 		return;
 
-	dInfo("%s:%d <--> ", mAddrLocal.c_str(), mPortLocal);
-	dInfo("%s:%d\n", mAddrRemote.c_str(), mPortRemote);
+	dInfo("%s%s%s:%d <--> ",
+		mIsIPv6Local ? "[" : "",
+		mAddrLocal.c_str(),
+		mIsIPv6Local ? "]" : "",
+		mPortLocal);
+
+	if (mAddrLocal.size() > INET_ADDRSTRLEN)
+		dInfo("\n");
+
+	dInfo("%s%s%s:%d\n",
+		mIsIPv6Remote ? "[" : "",
+		mAddrRemote.c_str(),
+		mIsIPv6Remote ? "]" : "",
+		mPortRemote);
 }
 
 /* static functions */
-#if CONFIG_PROC_HAVE_CHRONO
+
+bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
+								string &strAddr,
+								uint16_t &numPort,
+								bool &isIPv6)
+{
+#if defined(LWIP) && LWIP_IPV6
+#define ADDRSTRLEN INET6_ADDRSTRLEN
+#else
+#define ADDRSTRLEN INET_ADDRSTRLEN
+#endif
+	char buf[ADDRSTRLEN];
+	size_t len = sizeof(buf) - 1;
+	const char *pRes;
+
+	if (addr.ss_family == AF_INET)
+	{
+		struct sockaddr_in *pAddr = (struct sockaddr_in *)&addr;
+
+		numPort = ntohs(pAddr->sin_port);
+		isIPv6 = false;
+
+		pRes = ::inet_ntop(pAddr->sin_family, &pAddr->sin_addr, buf, len);
+	}
+#if defined(LWIP) && LWIP_IPV6
+	else
+	{
+		struct sockaddr_in6 *pAddr = (struct sockaddr_in6 *)&addr;
+
+		numPort = ntohs(pAddr->sin6_port);
+		isIPv6 = true;
+
+		pRes = ::inet_ntop(pAddr->sin6_family, &pAddr->sin6_addr, buf, len);
+	}
+#endif
+	if (!pRes)
+		return false;
+
+	strAddr = string(buf);
+
+	return true;
+}
+
+#if 0
 uint32_t TcpTransfering::millis()
 {
 	auto now = steady_clock::now();
@@ -630,7 +773,7 @@ uint32_t TcpTransfering::millis()
 
 bool TcpTransfering::fileNonBlockingSet(SOCKET fd)
 {
-	int opt = 1;
+	int opt;
 #ifdef _WIN32
 	unsigned long nonBlockMode = 1;
 
