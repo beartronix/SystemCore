@@ -71,6 +71,7 @@ static system_clock::time_point tOld;
 const string red("\033[0;31m");
 const string yellow("\033[0;33m");
 const string green("\033[0;32m");
+const string cyan("\033[0;36m");
 const string reset("\033[0m");
 
 const size_t cLogEntryBufferSize = 1024;
@@ -169,15 +170,22 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 		SetConsoleTextAttribute(hConsole, 7);
 #else
+
 #if 1
 		if (severity == 1)
-			cerr << red << pBuf << reset << "\r\n" << flush;
+			cerr << red;
 		else
 		if (severity == 2)
-			cerr << yellow << pBuf << reset << "\r\n" << flush;
+			cerr << yellow;
 		else
+		if (severity == 3)
+			cout << green;
+		else
+			cout << cyan;
+		cout << pBuf << reset << "\r\n" << flush;
+#else
+			cout << pBuf << reset << "\r\n" << flush;
 #endif
-			cout << green << pBuf << reset << "\r\n" << flush;
 #endif
 	}
 
