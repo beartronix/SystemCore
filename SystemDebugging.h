@@ -39,6 +39,7 @@
 #include <list>
 #include <queue>
 #include <time.h>
+#include "RingBuffer.hpp"
 
 #include "Processing.h"
 #include "TcpListening.h"
@@ -73,15 +74,18 @@ public:
 	void portStartSet(uint16_t port);
 	static void levelLogSet(int lvl);
 
+	const std::string& processTree() const { return mProcTree; }
+	RingBuffer<std::string>& logBuf() { return SystemDebugging::qLogEntriesExt; }
+
 protected:
 
-	SystemDebugging() : Processing("SystemDebugging") {}
+	SystemDebugging() = delete;
 	SystemDebugging(Processing *pTreeRoot);
 	virtual ~SystemDebugging() {}
 
 private:
 
-	SystemDebugging(const SystemDebugging &) : Processing("") {}
+	SystemDebugging(const SystemDebugging &) = delete;
 	SystemDebugging &operator=(const SystemDebugging &)
 	{
 		return *this;
@@ -150,6 +154,7 @@ private:
 	static bool procTreeDetailed;
 	static bool procTreeColored;
 	static std::queue<std::string> qLogEntries;
+	static RingBuffer<std::string> qLogEntriesExt; // for external access
 	static int levelLog;
 
 	/* constants */

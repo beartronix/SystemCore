@@ -45,6 +45,7 @@ bool SystemDebugging::procTreeDetailed = true;
 bool SystemDebugging::procTreeColored = true;
 
 queue<string> SystemDebugging::qLogEntries;
+RingBuffer<string> SystemDebugging::qLogEntriesExt(10);
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxLogEntries;
 #endif
@@ -502,5 +503,6 @@ void SystemDebugging::logEntryCreated(
 		return;
 
 	qLogEntries.emplace(msg, len);
+	qLogEntriesExt.push(string(msg, msg+len) + "\n");
 }
 
