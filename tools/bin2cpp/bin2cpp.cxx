@@ -5,7 +5,7 @@
   Author(s):
       - Johannes Natter, office@dsp-crowd.com
 
-  Copyright (C) 2017 Authors and www.dsp-crowd.com
+  Copyright (C) 2017, Johannes Natter
 */
 
 #include <iostream>
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 		replace(nameIn.begin(), nameIn.end(), '.', '_');
 		replace(nameIn.begin(), nameIn.end(), '-', '_');
 
-		fCpp << "\t\"" << nameIn << "\",\t\t(const char *)" << nameIn << ",\t\t" << nameIn << "_len," << endl;
+		fCpp << "\t{\"" << nameIn << "\",\t\t(const char *)" << nameIn << ",\t\t" << nameIn << "_len}," << endl;
 	}
 
 	fCpp << "};" << endl;

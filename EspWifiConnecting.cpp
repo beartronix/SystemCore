@@ -7,7 +7,7 @@
 
   File created on 30.01.2024
 
-  Copyright (C) 2024-now Authors and www.dsp-crowd.com
+  Copyright (C) 2024, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -55,8 +55,6 @@ dProcessStateStr(ProcState);
 
 using namespace std;
 using namespace chrono;
-
-#define LOG_LVL	0
 
 const uint32_t cUpdateDelayMs = 200;
 const uint32_t cIfUpWaitTmoMs = 5000;
@@ -191,7 +189,7 @@ Success EspWifiConnecting::process()
 		if (!mWifiConnected)
 			break;
 
-		procDbgLog(LOG_LVL, "WiFi connected");
+		procDbgLog("WiFi connected");
 #endif
 		mState = StIfUpWait;
 
@@ -200,7 +198,7 @@ Success EspWifiConnecting::process()
 
 		if (diffMs > cIfUpWaitTmoMs)
 		{
-			//procDbgLog(LOG_LVL, "Timeout reached for interface up");
+			//procDbgLog("Timeout reached for interface up");
 			mState = StConnect;
 			break;
 		}
@@ -217,7 +215,7 @@ Success EspWifiConnecting::process()
 		if (!mIpInfo.ip.addr)
 			break;
 
-		procDbgLog(LOG_LVL, "Interface up. IP: " IPSTR, IP2STR(&mIpInfo.ip));
+		procDbgLog("Interface up. IP: " IPSTR, IP2STR(&mIpInfo.ip));
 
 		mConnected = true;
 
@@ -261,7 +259,7 @@ Success EspWifiConnecting::process()
 		if (mWifiConnected)
 			break;
 
-		procDbgLog(LOG_LVL, "WiFi disconnected");
+		procDbgLog("WiFi disconnected");
 
 		mState = StConfigure;
 

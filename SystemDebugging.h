@@ -7,7 +7,7 @@
 
   File created on 12.05.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -30,10 +30,6 @@
 
 #ifndef SYSTEM_DEBUGGING_H
 #define SYSTEM_DEBUGGING_H
-
-#ifndef CONFIG_DBG_HAVE_ENVIRONMENT
-#define CONFIG_DBG_HAVE_ENVIRONMENT			0
-#endif
 
 #include <string>
 #include <list>
@@ -72,6 +68,9 @@ public:
 
 	void listenLocalSet();
 	void portStartSet(uint16_t port);
+
+	bool ready();
+
 	static void levelLogSet(int lvl);
 
 	const std::string& processTree() const { return mProcTree; }
@@ -102,46 +101,41 @@ private:
 	Success shutdown();
 
 	void peerListUpdate();
+	void commandAutoProcess();
 	bool disconnectRequestedCheck(TcpTransfering *pTrans);
-	void peerRemove();
+	void peerCheck();
 	void peerAdd(TcpListening *pListener, enum PeerType peerType, const char *pTypeDesc);
 	void processTreeSend();
 #if CONFIG_PROC_HAVE_LOG
 	void logEntriesSend();
 #endif
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-	void environmentSend();
-#endif
-
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	/* member variables */
 	Processing *mpTreeRoot;
-	bool mListenLocal;
-	std::list<struct SystemDebuggingPeer> mPeerList;
-	uint32_t mUpdateMs;
-
 	TcpListening *mpLstProc;
 	TcpListening *mpLstLog;
 	TcpListening *mpLstCmd;
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-	TcpListening *mpLstEnv;
-	std::string mEnvironment;
-	bool mEnvironmentChanged;
-	clock_t mEnvironmentChangedTime;
-#endif
+	TcpListening *mpLstCmdAuto;
+
+	std::list<struct SystemDebuggingPeer> mPeerList;
 
 	std::string mProcTree;
+	bool mListenLocal;
 	bool mProcTreeChanged;
-	uint32_t mProcTreeChangedTime;
 	bool mProcTreePeerAdded;
+	bool mPeerLogOnceConnected;
 
+	uint32_t mUpdateMs;
+	uint32_t mProcTreeChangedTime;
 	uint16_t mPortStart;
 
 	/* static functions */
+	static void cmdLevelLogSet(char *pArgs, char *pBuf, char *pBufEnd);
+	static void cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd);
 	static void procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd);
 	static void procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufEnd);
-	static void logEntryCreated(
+	static void entryLogCreate(
 			const int severity,
 			const char *filename,
 			const char *function,

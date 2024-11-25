@@ -7,7 +7,7 @@
 
   File created on 30.11.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@
 #define dForEach_ProcState(gen) \
 		gen(StStart) \
 		gen(StSendReadyWait) \
-		gen(StAutoModeInitWait) \
+		gen(StCmdAutoReceiveWait) \
 		gen(StTelnetInit) \
 		gen(StWelcomeSend) \
 		gen(StMain) \
@@ -102,8 +102,6 @@ using namespace std;
 using namespace chrono;
 #endif
 
-#define LOG_LVL	0
-
 // http://www.iana.org/assignments/telnet-options/telnet-options.xhtml#telnet-options-1
 #define keyIac			0xFF // RFC854
 #define keyIacDo		0xFD // RFC854
@@ -128,8 +126,6 @@ const KeyUser keyEsc          = 0x1B;
 const KeyUser keyCtrlC        = 0x03;
 const KeyUser keyCtrlD        = 0x04;
 const KeyUser keyTab          = 0x09;
-const KeyUser keyHelp         = '?';
-const KeyUser keyOpt          = '=';
 
 enum KeyExtensions
 {
@@ -161,7 +157,7 @@ const string cWelcomeMsg = "\r\n" dPackageName "\r\n" \
 const string cSeqCtrlC = "\xff\xf4\xff\xfd\x06";
 const size_t cLenSeqCtrlC = cSeqCtrlC.size();
 
-const uint32_t cTmoAutoModeMs = 40;
+const uint32_t cTmoCmdAuto = 200;
 const int cSizeCmdIdMax = 16;
 const long int cLenHexDumpStd = 16;
 
@@ -183,7 +179,8 @@ SystemCommanding::SystemCommanding(SOCKET fd)
 	, mpTrans(NULL)
 	, mStateKey(StKeyMain)
 	, mStartMs(0)
-	, mCursorHidden(false)
+	, mModeAuto(false)
+	, mTermChanged(false)
 	, mDone(false)
 	, mLastKeyWasTab(false)
 	, mIdxLineEdit(0)
@@ -241,25 +238,25 @@ Success SystemCommanding::process()
 		if (!mpTrans->mSendReady)
 			break;
 
+		if (mModeAuto)
+		{
+			mStartMs = curTimeMs;
+			mState = StCmdAutoReceiveWait;
+			break;
+		}
+
 		mStartMs = curTimeMs;
 		mState = StTelnetInit;
 
 		break;
-	case StAutoModeInitWait:
+	case StCmdAutoReceiveWait:
 
-		if (diffMs > cTmoAutoModeMs)
-		{
-			mState = StTelnetInit;
-			break;
-		}
+		if (diffMs > cTmoCmdAuto)
+			return procErrLog(-1, "timeout receiving command");
 
 		success = autoCommandReceive();
 		if (success == Pending)
 			break;
-
-		msg += "Auto command executed";
-
-		mpTrans->send(msg.c_str(), msg.size());
 
 		return success;
 
@@ -275,15 +272,21 @@ Success SystemCommanding::process()
 		// IAC WONT LINEMODE
 		msg += "\xFF\xFC\x22";
 
+		// Alternative screen buffer
+		msg += "\033[?1049h";
+
 		// Hide cursor
 		msg += "\033[?25l";
+
+		// Clear screen
+		msg += "\033[2J\033[H";
 
 		// Set terminal title
 		msg += "\033]2;SystemCommanding()\a";
 
 		mpTrans->send(msg.c_str(), msg.size());
 
-		mCursorHidden = true;
+		mTermChanged = true;
 
 		mState = StWelcomeSend;
 
@@ -325,10 +328,19 @@ Success SystemCommanding::shutdown()
 	if (!mpTrans)
 		return Positive;
 
-	string msg = "\r\n";
+	string msg;
 
-	if (mCursorHidden)
-		msg += "\033[?25h"; // Show cursor
+	if (!mModeAuto)
+		msg += "\r\n";
+
+	if (mTermChanged)
+	{
+		// Show cursor
+		msg += "\033[?25h";
+
+		// Restore screen buffer
+		msg += "\033[?1049l";
+	}
 
 	mpTrans->send(msg.c_str(), msg.size());
 	mpTrans->doneSet();
@@ -339,27 +351,37 @@ Success SystemCommanding::shutdown()
 
 Success SystemCommanding::autoCommandReceive()
 {
-	ssize_t lenReq, lenPlanned, lenDone;
-	char buf[8];
+	ssize_t lenReq, lenDone;
+	char *pEdit= mCmdInBuf[mIdxLineEdit];
 
-	buf[0] = 0;
+	*pEdit = 0;
 
-	lenReq = sizeof(buf) - 1;
-	lenPlanned = lenReq;
+	lenReq = cSizeBufCmdIn;
 
-	lenDone = mpTrans->read(buf, lenPlanned);
+	lenDone = mpTrans->read(mCmdInBuf[0], lenReq);
 	if (!lenDone)
 		return Pending;
 
 	if (lenDone < 0)
-		return procErrLog(-1, "could not receive auto command");
+		return procErrLog(-1, "could not receive command");
 
-	buf[lenDone] = 0;
+	pEdit[lenDone] = 0;
 
+	// remove newline
+
+	if (lenDone && pEdit[lenDone - 1] == '\n')
+		pEdit[--lenDone] = 0;
+
+	if (lenDone && pEdit[lenDone - 1] == '\r')
+		pEdit[--lenDone] = 0;
+#if 0
 	procInfLog("auto bytes received: %d", lenDone);
+	procInfLog("auto command received: %s", pEdit);
 
 	for (ssize_t i = 0; i < lenDone; ++i)
-		procInfLog("byte: %3u %02x '%c'", buf[i], buf[i], buf[i]);
+		procInfLog("byte: %3u %02x '%c'", pEdit[i], pEdit[i], pEdit[i]);
+#endif
+	commandExecute();
 
 	return Positive;
 }
@@ -634,11 +656,8 @@ void SystemCommanding::commandExecute()
 		procInfLog("arguments       '%s'", pArgs);
 #endif
 	list<SystemCommand>::const_iterator iter;
-	char bufOut[cSizeBufCmdOut];
-	size_t lenBuf = sizeof(bufOut) - 1;
+	size_t lenBuf = sizeof(mBufOut) - 1;
 	string msg;
-
-	bufOut[0] = 0;
 
 	iter = cmds.begin();
 	for (; iter != cmds.end(); ++iter)
@@ -647,12 +666,13 @@ void SystemCommanding::commandExecute()
 			strcmp(pEdit, iter->shortcut.c_str()))
 			continue;
 
-		iter->func(pArgs, bufOut, bufOut + lenBuf);
-		bufOut[lenBuf] = 0;
+		mBufOut[0] = 0;
+		iter->func(pArgs, mBufOut, mBufOut + lenBuf);
+		mBufOut[lenBuf] = 0;
 
-		lfToCrLf(bufOut, msg);
+		lfToCrLf(mBufOut, msg);
 
-		if (msg.size() && msg.back() != '\n')
+		if (!mModeAuto && msg.size())
 			msg += "\r\n";
 
 		mpTrans->send(msg.c_str(), msg.size());
@@ -663,7 +683,9 @@ void SystemCommanding::commandExecute()
 	msg = "Command not found";
 	procWrnLog("%s", msg.c_str());
 
-	msg += "\r\n";
+	if (!mModeAuto && msg.size())
+		msg += "\r\n";
+
 	mpTrans->send(msg.c_str(), msg.size());
 }
 
@@ -880,18 +902,23 @@ bool SystemCommanding::cursorJump(uint16_t key)
 	bool changed = false;
 
 	const char *pCursor = &mCmdInBuf[mIdxLineEdit][mIdxColCursor];
-	const char *pPrev = pCursor - 1;
+	const char *pPrev = NULL;
 
 	while (true)
 	{
 		if (mIdxColCursor == idxStop)
 			break;
 
-		mIdxColCursor += direction;
 		changed = true;
 
-		pPrev += direction;
 		pCursor += direction;
+		mIdxColCursor += direction;
+
+		if (mIdxColCursor)
+			pPrev = pCursor - 1;
+
+		if (!pPrev)
+			continue;
 
 		if (keyIsAlphaNum(*pPrev) == statePrev &&
 			keyIsAlphaNum(*pCursor) == stateCursor)
@@ -973,9 +1000,9 @@ bool SystemCommanding::keyIsAlphaNum(uint16_t key)
 
 void SystemCommanding::lfToCrLf(char *pBuf, string &str)
 {
-	size_t lenBuf = strlen(pBuf) + 1;
+	size_t lenBuf = strlen(pBuf);
 	char *pBufLineStart, *pBufIter;
-	int8_t lastLine;
+	char *pBufEnd;
 
 	str.clear();
 
@@ -984,26 +1011,18 @@ void SystemCommanding::lfToCrLf(char *pBuf, string &str)
 
 	str.reserve(lenBuf);
 
+	pBufEnd = pBuf + lenBuf;
 	pBufLineStart = pBufIter = pBuf;
-	lastLine = 0;
 
 	while (1)
 	{
-		if (pBufIter >= pBuf + lenBuf)
+		if (pBufIter >= pBufEnd)
 			break;
 
-		if (*pBufIter && *pBufIter != '\n')
+		if (*pBufIter != '\n')
 		{
 			++pBufIter;
 			continue;
-		}
-
-		if (!*pBufIter)
-		{
-			if (!*(pBufIter - 1)) // last line drawn already
-				break;
-
-			lastLine = 1;
 		}
 
 		*pBufIter = 0; // terminate current line starting at pBufLineStart
@@ -1013,10 +1032,9 @@ void SystemCommanding::lfToCrLf(char *pBuf, string &str)
 
 		++pBufIter;
 		pBufLineStart = pBufIter;
-
-		if (lastLine)
-			break;
 	}
+
+	str += pBufLineStart;
 }
 
 void SystemCommanding::processInfo(char *pBuf, char *pBufEnd)
@@ -1100,7 +1118,7 @@ void SystemCommanding::globalInit()
 	/* register standard commands here */
 	cmdReg("help",
 		cmdHelpPrint,
-		"h", "this help screen",
+		"h", "This help screen",
 		cInternalCmdCls);
 	cmdReg("hd",
 		cmdHexDump,
@@ -1464,8 +1482,6 @@ void SystemCommanding::cmdHelpPrint(char *pArgs, char *pBuf, char *pBufEnd)
 
 		dInfo("\n");
 	}
-
-	dInfo("\n");
 }
 
 void SystemCommanding::cmdHexDump(char *pArgs, char *pBuf, char *pBufEnd)
@@ -1545,17 +1561,17 @@ size_t SystemCommanding::hexDumpPrint(char *pBuf, char *pBufEnd,
 
 		dInfo("  |");
 
-		for (i = 0; i < lenPrinted; ++i, ++pLine, ++pBuf)
+		for (i = 0; i < lenPrinted; ++i, ++pLine)
 		{
 			char c = *pLine;
 
 			if (c < 32 || c > 126)
 			{
-				*pBuf = '.';
+				dInfo(".");
 				continue;
 			}
 
-			*pBuf = c;
+			dInfo("%c", c);
 		}
 
 		dInfo("|\n");
@@ -1598,7 +1614,7 @@ void cmdReg(
 		const string &desc,
 		const string &group)
 {
-	dbgLog(LOG_LVL, "registering command %s", id.c_str());
+	dbgLog("registering command %s", id.c_str());
 #if CONFIG_PROC_HAVE_DRIVERS
 	Guard lock(mtxCmds);
 #endif
@@ -1626,6 +1642,6 @@ void cmdReg(
 	cmds.push_back(newCmd);
 	cmds.sort(commandSort);
 
-	dbgLog(LOG_LVL, "registering command %s: done", id.c_str());
+	dbgLog("registering command %s: done", id.c_str());
 }
 

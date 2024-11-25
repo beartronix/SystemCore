@@ -7,7 +7,7 @@
 
   File created on 28.09.2018
 
-  Copyright (C) 2018-now Authors and www.dsp-crowd.com
+  Copyright (C) 2018, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -47,10 +47,12 @@
   - With up to one parent and multiple children
   - Thread safe
   - EOF signals can be sent
+    - Sender:   sourceDoneSet()
+    - Receiver: sinkDoneSet()
   - Main functions
     - connect() / disconnect()     .. Create pipe structure
-    - front()/pop()                .. Get information about-/remove an entry
     - commit()                     .. Add an entry to the queue
+    - get()                        .. Get an entry from the queue
     - toPushTry()                  .. Try to push particles to children
 */
 
@@ -64,12 +66,83 @@
 
 typedef uint32_t ParticleTime;
 
+/* Literature
+ * - https://en.cppreference.com/w/cpp/language/rule_of_three
+ */
 template<typename T>
 struct PipeEntry
 {
 	T particle;
 	ParticleTime t1;
 	ParticleTime t2;
+
+	// construct / destruct
+
+	PipeEntry()
+		: particle()
+		, t1()
+		, t2()
+	{}
+
+	PipeEntry(T p, ParticleTime pt1, ParticleTime pt2)
+		: particle(std::move(p))
+		, t1(pt1)
+		, t2(pt2)
+	{}
+
+	~PipeEntry()
+	{}
+
+	// copy
+
+	PipeEntry(const PipeEntry& other)
+		: particle(other.particle)
+		, t1(other.t1)
+		, t2(other.t2)
+	{}
+
+	PipeEntry& operator=(const PipeEntry& other)
+	{
+		if (this == &other)
+			return *this;
+
+		// delete own data
+
+		particle = other.particle;
+		t1 = other.t1;
+		t2 = other.t2;
+
+		return *this;
+	}
+
+	// move
+
+	PipeEntry(PipeEntry&& other) noexcept
+		: particle(std::move(other.particle))
+		, t1(other.t1)
+		, t2(other.t1)
+	{
+		other.t1 = 0;
+		other.t2 = 0;
+	}
+
+	PipeEntry& operator=(PipeEntry&& other) noexcept
+	{
+		if (this == &other)
+			return *this;
+
+		// delete own data
+
+		particle = std::move(other.particle);
+		t1 = other.t1;
+		t2 = other.t2;
+
+		other.t1 = 0;
+		other.t2 = 0;
+
+		return *this;
+	}
+
 };
 
 class PipeBase
@@ -110,19 +183,6 @@ public:
 		return mSize >= mSizeMax;
 	}
 
-	void lastSamplesSet()
-	{
-		mLastEntries = true;
-	}
-
-	bool noSamplesLeft()
-	{
-#if CONFIG_PROC_HAVE_DRIVERS
-		Guard lock(mEntryMtx);
-#endif
-		return !mSize && mLastEntries;
-	}
-
 	void dataBlockingSet(bool block)
 	{
 		mDataBlocking = block;
@@ -130,11 +190,49 @@ public:
 
 	virtual bool toPushTry() = 0;
 
+	// optional
+	bool sourceDone() const
+	{
+		return mSourceDone;
+	}
+
+	// used by sender
+	void sourceDoneSet()
+	{
+#if CONFIG_PROC_HAVE_DRIVERS
+		Guard lock(mEntryMtx);
+#endif
+		mSourceDone = true;
+	}
+
+	bool sinkDone() const
+	{
+		return mSinkDone;
+	}
+
+	// used by receiver
+	void sinkDoneSet()
+	{
+#if CONFIG_PROC_HAVE_DRIVERS
+		Guard lock(mEntryMtx);
+#endif
+		mSinkDone = true;
+	}
+
+	bool entriesLeft()
+	{
+#if CONFIG_PROC_HAVE_DRIVERS
+		Guard lock(mEntryMtx);
+#endif
+		return mSize || !mSourceDone;
+	}
+
 protected:
 	PipeBase(std::size_t size)
 		: mSize(0)
 		, mSizeMax(size)
-		, mLastEntries(false)
+		, mSourceDone(false)
+		, mSinkDone(false)
 		, mDataBlocking(true)
 	{}
 
@@ -149,7 +247,8 @@ protected:
 	std::size_t mSize;
 	std::size_t mSizeMax;
 
-	bool mLastEntries;
+	bool mSourceDone;
+	bool mSinkDone;
 	bool mDataBlocking;
 
 private:
@@ -226,81 +325,58 @@ public:
 		childRemove(pChild);
 	}
 
-	T front()
+	void parentDisconnect()
 	{
 #if CONFIG_PROC_HAVE_DRIVERS
-		Guard lock(mEntryMtx);
+		Guard lock(mParentListMtx);
 #endif
-		PipeEntry<T> entry = mEntries.front();
-		return entry.particle;
+		QueueIter iter = mParentList.begin();
+		while (iter != mParentList.end())
+		{
+			(*iter)->childRemove(this);
+#if DEBUG_PIPE
+			std::cout << this << "->parentDisconnect(" << pParent << ") - 1: " << *iter << std::endl;
+#endif
+			iter = mParentList.erase(iter);
+#if DEBUG_PIPE
+			std::cout << this << "->parentDisconnect(" << pParent << ") - 2" << std::endl;
+#endif
+		}
 	}
 
-	ParticleTime frontT1()
+	ssize_t get(PipeEntry<T> &entry)
 	{
 #if CONFIG_PROC_HAVE_DRIVERS
 		Guard lock(mEntryMtx);
 #endif
-		PipeEntry<T> entry = mEntries.front();
-		return entry.t1;
-	}
+		if (!mSize && mSourceDone)
+			return -1;
 
-	ParticleTime frontT2()
-	{
-#if CONFIG_PROC_HAVE_DRIVERS
-		Guard lock(mEntryMtx);
-#endif
-		PipeEntry<T> entry = mEntries.front();
-		return entry.t2;
-	}
-
-	bool pop()
-	{
-#if CONFIG_PROC_HAVE_DRIVERS
-		Guard lock(mEntryMtx);
-#endif
 		if (!mSize)
-			return false;
+			return 0;
 
+		entry = std::move(mEntries.front());
 		mEntries.pop();
 		--mSize;
 
-		return true;
+		return 1;
 	}
 
-	bool get(PipeEntry<T> &entry)
+	ssize_t commit(T particle, ParticleTime t1 = 0, ParticleTime t2 = 0)
 	{
 #if CONFIG_PROC_HAVE_DRIVERS
 		Guard lock(mEntryMtx);
 #endif
-		if (!mSize)
-			return false;
+		if (mSourceDone || mSinkDone)
+			return -1;
 
-		entry = mEntries.front();
-		mEntries.pop();
-
-		--mSize;
-
-		return true;
-	}
-
-	bool commit(T particle, ParticleTime t1 = 0, ParticleTime t2 = 0)
-	{
-#if CONFIG_PROC_HAVE_DRIVERS
-		Guard lock(mEntryMtx);
-#endif
 		if (mSize >= mSizeMax)
-			return false;
+			return 0;
 
-		PipeEntry<T> entry;
-
-		entry.particle = particle;
-		entry.t1 = t1;
-		entry.t2 = t2;
-
-		mEntries.push(entry);
+		mEntries.emplace(std::move(particle), t1, t2);
 		++mSize;
 
-		return true;
+		return 1;
 	}
 
 	bool toPushTry()
@@ -329,9 +405,9 @@ public:
 
 			/* are all children ready for this next entry? */
 			iter = mChildList.begin();
-			while (iter != mChildList.end())
+			for (; iter != mChildList.end(); ++iter)
 			{
-				if (!(*iter++)->isFull())
+				if (!(*iter)->isFull())
 					continue;
 
 				wouldBlock = true;
@@ -348,26 +424,25 @@ public:
 #endif
 				entry = mEntries.front();
 				mEntries.pop();
+				--mSize;
 			}
 
 			/* transfer entry to all children */
 			iter = mChildList.begin();
-			while (iter != mChildList.end())
-				(*iter++)->commit(entry.particle, entry.t1, entry.t2);
+			for (; iter != mChildList.end(); ++iter)
+				(*iter)->commit(entry.particle, entry.t1, entry.t2);
 
 			somethingPushed = true;
 		}
 
-		bool nothingLeft = noSamplesLeft();
+		bool nothingLeft = !entriesLeft();
 
 		/* inform children that we will no longer send particles */
 		iter = mChildList.begin();
-		while (iter != mChildList.end())
+		for (; iter != mChildList.end(); ++iter)
 		{
 			if (nothingLeft)
-				(*iter)->lastSamplesSet();
-
-			++iter;
+				(*iter)->sourceDoneSet();
 		}
 
 		return somethingPushed;
@@ -463,10 +538,13 @@ private:
 #if DEBUG_PIPE
 			std::cout << this << "->parentRemove(" << pParent << ") - 1: " << *iter << std::endl;
 #endif
-			if (*iter++ != pParent)
+			if (*iter != pParent)
+			{
+				++iter;
 				continue;
+			}
 
-			mParentList.erase(iter);
+			iter = mParentList.erase(iter);
 #if DEBUG_PIPE
 			std::cout << this << "->parentRemove(" << pParent << ") - 2" << std::endl;
 #endif

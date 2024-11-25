@@ -7,7 +7,7 @@
 
   File created on 14.09.2018
 
-  Copyright (C) 2018-now Authors and www.dsp-crowd.com
+  Copyright (C) 2018, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -101,14 +101,19 @@
 
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
+#include <cstdint>
+#include <cstring>
+#include <cstdio>
 #endif
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
 #include <new>
 #include <list>
+#define dNoThrow (std::nothrow)
+#endif
+
+#ifndef dNoThrow
+#define dNoThrow
 #endif
 
 // #if CONFIG_PROC_HAVE_DRIVERS
@@ -153,7 +158,10 @@ enum SuccessState
 	Positive = 1
 };
 
-typedef void (*GlobDestructorFunc)();
+typedef void (*FuncGlobDestruct)();
+typedef void (*FuncInternalDrive)(void *pProc);
+typedef void * /* pDriver */ (*FuncDriverInternalCreate)(FuncInternalDrive pFctDrive, void *pProc, void *pConfigDriver);
+typedef void (*FuncDriverInternalCleanUp)(void *pDriver);
 
 class Processing
 {
@@ -172,17 +180,29 @@ public:
 	bool shutdownDone() const;
 
 	size_t processTreeStr(char *pBuf, char *pBufEnd, bool detailed = true, bool colored = false);
-
+#if CONFIG_PROC_HAVE_DRIVERS
+	void configDriverSet(void *pConfigDriver);
+#endif
 	static void undrivenSet(Processing *pChild);
 	static void destroy(Processing *pChild);
 	static void applicationClose();
-	static void globalDestructorRegister(GlobDestructorFunc globDestr);
+	static void globalDestructorRegister(FuncGlobDestruct globDestr);
 #if !CONFIG_PROC_HAVE_LIB_STD_C
 	static const char *strrchr(const char *x, char y);
 	static void *memcpy(void *to, const void *from, size_t cnt);
 #endif
 	static void showAddressInIdSet(uint8_t val) { showAddressInId = val; }
 	static void disableTreeDefaultSet(uint8_t val) { disableTreeDefault = val; }
+#if CONFIG_PROC_HAVE_DRIVERS
+	static void sleepUsInternalDriveSet(size_t delayUs);
+	static void sleepInternalDriveSet(std::chrono::microseconds delay);
+	static void sleepInternalDriveSet(std::chrono::milliseconds delay);
+	static void numBurstInternalDriveSet(size_t numBurst);
+	static void internalDriveSet(FuncInternalDrive pFctDrive);
+	static void driverInternalCreateAndCleanUpSet(
+			FuncDriverInternalCreate pFctCreate,
+			FuncDriverInternalCleanUp pFctCleanUp);
+#endif
 
 protected:
 	// This area is used by the concrete processes
@@ -210,6 +230,7 @@ protected:
 	void maxChildrenSet(uint16_t cnt);
 #endif
 	DriverMode driver() const;
+	uint8_t levelDriver() const;
 
 	static size_t procId(char *pBuf, char *pBufEnd, const Processing *pProc);
 	static size_t progressStr(char *pBuf, char *pBufEnd, const int val, const int maxVal);
@@ -227,6 +248,12 @@ private:
 		return *this;
 	}
 
+	/* member functions */
+
+	/* member variables */
+	uint8_t mLevelTree;
+	uint8_t mLevelDriver;
+
 	const char *mName;
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
@@ -236,36 +263,43 @@ private:
 	Processing **childElemErase(Processing **pChildListElem);
 	Processing **mpChildList;
 #endif
-
 #if CONFIG_PROC_HAVE_DRIVERS
 	std::mutex mChildListMtx;
-	std::thread *mpThread;
+	void *mpDriver;
+	void *mpConfigDriver;
 #endif
-
 	Success mSuccess;
 	uint16_t mNumChildren;
+	uint8_t mStateAbstract;
+	uint8_t mStatParent;
+	DriverMode mDriver;
 #if !CONFIG_PROC_HAVE_LIB_STD_CPP
 	uint16_t mNumChildrenMax;
 #endif
-	uint8_t mStateAbstract;
-	DriverMode mDriver;
-	uint8_t mStatParent;
 	uint8_t mStatDrv;
-	uint8_t mLevelTree;
-	uint8_t mLevelDriver;
 
+	/* static functions */
 	static void parentalDrive(Processing *pChild);
 #if CONFIG_PROC_HAVE_DRIVERS
-	static void internalDrive(Processing *pChild);
+	static void internalDrive(void *pProc);
+	static void *driverInternalCreate(FuncInternalDrive pFctDrive, void *pProc, void *pConfigDriver);
+	static void driverInternalCleanUp(void *pDriver);
+
+	/* static variables */
+	static size_t sleepInternalDriveUs;
+	static size_t numBurstInternalDrive;
+	static FuncInternalDrive pFctInternalDrive;
+	static FuncDriverInternalCreate pFctDriverInternalCreate;
+	static FuncDriverInternalCleanUp pFctDriverInternalCleanUp;
 #endif
 	static uint8_t showAddressInId;
 	static uint8_t disableTreeDefault;
 
 #if CONFIG_PROC_HAVE_GLOBAL_DESTRUCTORS
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
-	static std::list<GlobDestructorFunc> globalDestructors;
+	static std::list<FuncGlobDestruct> globalDestructors;
 #else
-	static GlobDestructorFunc *pGlobalDestructors;
+	static FuncGlobDestruct *pGlobalDestructors;
 #endif
 #endif
 };
@@ -278,7 +312,7 @@ private:
 #define __PROC_FILENAME__ (procStrrChr(__FILE__, '/') ? procStrrChr(__FILE__, '/') + 1 : __FILE__)
 
 #if CONFIG_PROC_HAVE_LOG
-typedef void (*LogEntryCreatedFct)(
+typedef void (*FuncEntryLogCreate)(
 			const int severity,
 			const char *filename,
 			const char *function,
@@ -288,7 +322,7 @@ typedef void (*LogEntryCreatedFct)(
 			const size_t len);
 
 void levelLogSet(int lvl);
-void pFctLogEntryCreatedSet(LogEntryCreatedFct pFct);
+void entryLogCreateSet(FuncEntryLogCreate pFct);
 int16_t logEntryCreate(
 				const int severity,
 				const char *filename,
@@ -302,7 +336,7 @@ inline void levelLogSet(int lvl)
 {
 	(void)lvl;
 }
-#define pFctLogEntryCreatedSet(pFct)
+#define entryLogCreateSet(pFct)
 inline int16_t logEntryCreateDummy(
 				const int severity,
 				const char *filename,
@@ -321,16 +355,15 @@ inline int16_t logEntryCreateDummy(
 #define genericLog(l, c, m, ...)	(logEntryCreateDummy(l, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #endif
 
-#define errLog(c, m, ...)				(c < 0 ? genericLog(1, c, m, ##__VA_ARGS__) : c)
-#define wrnLog(m, ...)					(genericLog(2, 0, m, ##__VA_ARGS__))
-#define infLog(m, ...)					(genericLog(3, 0, m, ##__VA_ARGS__))
-#define dbgLog(l, m, ...)				(genericLog(4 + l, 0, m, ##__VA_ARGS__))
+#define errLog(c, m, ...)				(c < 0 ? genericLog(1, c, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__) : c)
+#define wrnLog(m, ...)					(genericLog(2, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
+#define infLog(m, ...)					(genericLog(3, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
+#define dbgLog(m, ...)					(genericLog(4, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
 
-#define GLOBAL_PROC_LOG_LEVEL_OFFSET	0
-#define procErrLog(c, m, ...)			(errLog(c, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
-#define procWrnLog(m, ...)				(wrnLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
-#define procInfLog(m, ...)				(infLog("%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
-#define procDbgLog(l, m, ...)			(dbgLog(GLOBAL_PROC_LOG_LEVEL_OFFSET + l, "%p %-34s " m, this, this->procName(), ##__VA_ARGS__))
+#define procErrLog(c, m, ...)			(c < 0 ? genericLog(1, c, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__) : c)
+#define procWrnLog(m, ...)				(genericLog(2, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
+#define procInfLog(m, ...)				(genericLog(3, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
+#define procDbgLog(m, ...)				(genericLog(4, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
 #define dInfoDebugPrefix
@@ -366,7 +399,7 @@ static const char *StateName ## String[] = \
 #define dStateTrace \
 if (mState != mStateOld) \
 { \
-	procDbgLog(LOG_LVL, "pst: %s > %s", \
+	procDbgLog("pst: %s > %s", \
 			ProcStateString[mStateOld], \
 			ProcStateString[mState]); \
 	mStateOld = mState; \

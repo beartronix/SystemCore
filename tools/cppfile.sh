@@ -1,37 +1,20 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
+	echo "Error: No filename specified"
 	echo ""
-	echo "Error: No classname specified"
+	echo "Usage: <name> [options]"
+	echo "  name segments must be separated with dashes '-'"
 	echo ""
-	echo "Usage: namesegment(-namesegment)*"
-	echo "  Name segments must be separated with dashes '-'"
-	echo "  Ending 'ing' is added automatically to classname"
-	echo ""
-	echo "Examples"
-	echo ""
-	echo "Input:"
-	echo "cppprocessing.sh eat"
-	echo ""
-	echo "Result:"
-	echo "Eating.cpp"
-	echo "Eating.h"
-	echo ""
-	echo "Input:"
-	echo "cppprocessing.sh banana-eat"
-	echo ""
-	echo "Result:"
-	echo "BananaEating.cpp"
-	echo "BananaEating.h"
-	echo ""
+	echo "Examples:"
+	echo "cppclass.sh app-config"
+	echo "cppclass.sh example-app app"
 	exit 1
 fi
 
 # Parameters
-inputname=$(echo $1 | tr '[:upper:]' '[:lower:]')
+inputname=$1
 classname=$(echo "$inputname" | sed -e "s:\b\(.\):\u\1:g" -e "s:-\| ::g")
-classname="${classname}ing"
-inputname="${inputname}ing"
 headerdef=$(echo "${inputname^^}" | sed -e "s:-:_:g")
 cppfilename=$classname.cpp
 hppfilename=$classname.h
@@ -67,66 +50,8 @@ cat > $cppfilename << EOF
 
 #include "$hppfilename"
 
-#define dForEach_ProcState(gen) \\
-		gen(StStart) \\
-		gen(StMain) \\
-		gen(StNop) \\
-
-#define dGenProcStateEnum(s) s,
-dProcessStateEnum(ProcState);
-
-#if 1
-#define dGenProcStateString(s) #s,
-dProcessStateStr(ProcState);
-#endif
-
 using namespace std;
 
-${classname}::${classname}()
-	: Processing("${classname}")
-	//, mStartMs(0)
-{
-	mState = StStart;
-}
-
-/* member functions */
-
-Success ${classname}::process()
-{
-	//uint32_t curTimeMs = millis();
-	//uint32_t diffMs = curTimeMs - mStartMs;
-	//Success success;
-#if 0
-	dStateTrace;
-#endif
-	switch (mState)
-	{
-	case StStart:
-
-		mState = StMain;
-
-		break;
-	case StMain:
-
-		break;
-	case StNop:
-
-		break;
-	default:
-		break;
-	}
-
-	return Pending;
-}
-
-void ${classname}::processInfo(char *pBuf, char *pBufEnd)
-{
-#if 1
-	dInfo("State\t\t\t%s\n", ProcStateString[mState]);
-#endif
-}
-
-/* static functions */
 
 EOF
 
@@ -141,7 +66,7 @@ cat > $hppfilename << EOF
 
   File created on ${thedate}
 
-  Copyright (C) ${theyear}, Johannes Natter
+  Copyright (C) ${theyear}-now Authors and www.dsp-crowd.com
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -160,47 +85,7 @@ cat > $hppfilename << EOF
 #ifndef ${headerdef}_H
 #define ${headerdef}_H
 
-#include "Processing.h"
 
-class ${classname} : public Processing
-{
-
-public:
-
-	static ${classname} *create()
-	{
-		return new dNoThrow ${classname};
-	}
-
-protected:
-
-	${classname}();
-	virtual ~${classname}() {}
-
-private:
-
-	${classname}(const ${classname} &) = delete;
-	${classname} &operator=(const ${classname} &) = delete;
-
-	/*
-	 * Naming of functions:  objectVerb()
-	 * Example:              peerAdd()
-	 */
-
-	/* member functions */
-	Success process();
-	void processInfo(char *pBuf, char *pBufEnd);
-
-	/* member variables */
-	//uint32_t mStartMs;
-
-	/* static functions */
-
-	/* static variables */
-
-	/* constants */
-
-};
 
 #endif
 

@@ -69,8 +69,6 @@ using namespace chrono;
 #define MSG_NOSIGNAL 0
 #endif
 
-#define LOG_LVL	0
-
 #ifdef _WIN32
 #if CONFIG_PROC_HAVE_DRIVERS
 mutex TcpTransfering::mtxGlobalInit;
@@ -276,7 +274,7 @@ Success TcpTransfering::process()
 
 Success TcpTransfering::shutdown()
 {
-	procDbgLog(LOG_LVL, "shutdown");
+	procDbgLog("shutdown");
 
 	if (mpHostAddr)
 	{
@@ -347,7 +345,7 @@ ssize_t TcpTransfering::read(void *pBuf, size_t lenReq)
 
 		if (numErr == WSAECONNRESET)
 		{
-			procDbgLog(LOG_LVL, "connection reset by peer");
+			procDbgLog("connection reset by peer");
 			disconnect();
 			return -2;
 		}
@@ -357,7 +355,7 @@ ssize_t TcpTransfering::read(void *pBuf, size_t lenReq)
 
 		if (numErr == ECONNRESET)
 		{
-			procDbgLog(LOG_LVL, "connection reset by peer");
+			procDbgLog("connection reset by peer");
 			disconnect();
 			return -2;
 		}
@@ -370,7 +368,7 @@ ssize_t TcpTransfering::read(void *pBuf, size_t lenReq)
 
 	if (!numBytes)
 	{
-		procDbgLog(LOG_LVL, "connection reset by peer");
+		procDbgLog("connection reset by peer");
 		disconnect();
 		return -4;
 	}
@@ -382,7 +380,7 @@ ssize_t TcpTransfering::read(void *pBuf, size_t lenReq)
 #else
 	numBytes = ::recv(mSocketFd, (char *)pBuf, numBytes, 0);
 #endif
-	//procDbgLog(LOG_LVL, "received data. len: %d", numBytes);
+	//procDbgLog("received data. len: %d", numBytes);
 
 	mBytesReceived += numBytes;
 
@@ -474,11 +472,11 @@ void TcpTransfering::disconnect(int err)
 #endif
 	if (mSocketFd == INVALID_SOCKET)
 	{
-		procDbgLog(LOG_LVL, "socket closed already");
+		procDbgLog("socket closed already");
 		return;
 	}
 
-	procDbgLog(LOG_LVL, "closing socket: %d", mSocketFd);
+	procDbgLog("closing socket: %d", mSocketFd);
 	mErrno = err;
 #ifdef _WIN32
 	::closesocket(mSocketFd);
@@ -486,7 +484,7 @@ void TcpTransfering::disconnect(int err)
 	::close(mSocketFd);
 #endif
 	mSocketFd = INVALID_SOCKET;
-	procDbgLog(LOG_LVL, "closing socket: %d: done", mSocketFd);
+	procDbgLog("closing socket: %d: done", mSocketFd);
 }
 
 Success TcpTransfering::socketOptionsSet()
@@ -562,8 +560,8 @@ Success TcpTransfering::connClientDone()
 							errnoToStr(errGet()).c_str());
 
 	if (errSock)
-		return procErrLog(-2, "socket error (%d): %s",
-							errSock, errnoToStr(errSock).c_str());
+		return procErrLog(-2, "socket error: %s",
+							errnoToStr(errSock).c_str());
 
 	return Positive;
 }
@@ -635,21 +633,19 @@ struct sockaddr_storage *TcpTransfering::addrStringToSock(const string &strAddr,
 		return NULL;
 
 	struct sockaddr_in *pAddr4 = (struct sockaddr_in *)pAddr;
+	struct sockaddr_in6 *pAddr6 = (struct sockaddr_in6 *)pAddr;
 
 	if (inet_pton(AF_INET, strAddr.c_str(), &pAddr4->sin_addr) == 1)
 	{
 		pAddr4->sin_family = AF_INET;
 		pAddr4->sin_port = htons(numPort);
 	}
-#if defined(LWIP) && LWIP_IPV6
 	else
-	struct sockaddr_in6 *pAddr6 = (struct sockaddr_in6 *)pAddr;
 	if (inet_pton(AF_INET6, strAddr.c_str(), &pAddr6->sin6_addr) == 1)
 	{
 		pAddr6->sin6_family = AF_INET6;
 		pAddr6->sin6_port = htons(numPort);
 	}
-#endif
 	else
 	{
 		free(pAddr);
@@ -725,12 +721,7 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 								uint16_t &numPort,
 								bool &isIPv6)
 {
-#if defined(LWIP) && LWIP_IPV6
-#define ADDRSTRLEN INET6_ADDRSTRLEN
-#else
-#define ADDRSTRLEN INET_ADDRSTRLEN
-#endif
-	char buf[ADDRSTRLEN];
+	char buf[INET6_ADDRSTRLEN];
 	size_t len = sizeof(buf) - 1;
 	const char *pRes;
 
@@ -743,7 +734,6 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 
 		pRes = ::inet_ntop(pAddr->sin_family, &pAddr->sin_addr, buf, len);
 	}
-#if defined(LWIP) && LWIP_IPV6
 	else
 	{
 		struct sockaddr_in6 *pAddr = (struct sockaddr_in6 *)&addr;
@@ -753,7 +743,6 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 
 		pRes = ::inet_ntop(pAddr->sin6_family, &pAddr->sin6_addr, buf, len);
 	}
-#endif
 	if (!pRes)
 		return false;
 
@@ -762,14 +751,12 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 	return true;
 }
 
-#if 0
 uint32_t TcpTransfering::millis()
 {
 	auto now = steady_clock::now();
 	auto nowMs = time_point_cast<milliseconds>(now);
 	return (uint32_t)nowMs.time_since_epoch().count();
 }
-#endif
 
 bool TcpTransfering::fileNonBlockingSet(SOCKET fd)
 {
@@ -803,7 +790,7 @@ bool TcpTransfering::wsaInit()
 	if (globalInitDone)
 		return true;
 
-	dbgLog(LOG_LVL, "global WSA initialization");
+	dbgLog("global WSA initialization");
 
 	int verLow = 2;
 	int verHigh = 2;
@@ -837,7 +824,7 @@ bool TcpTransfering::wsaInit()
 void TcpTransfering::globalWsaDestruct()
 {
 	WSACleanup();
-	dbgLog(LOG_LVL, "TcpTransfering(): done");
+	dbgLog("TcpTransfering(): done");
 }
 #endif
 

@@ -7,7 +7,7 @@
 
   File created on 30.11.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -90,6 +90,8 @@ public:
 		return new (std::nothrow) SystemCommanding(fd);
 	}
 
+	void modeAutoSet() { mModeAuto = true; }
+
 protected:
 
 	SystemCommanding() : Processing("SystemCommanding") {}
@@ -145,7 +147,8 @@ private:
 	TcpTransfering *mpTrans;
 	uint32_t mStateKey;
 	uint32_t mStartMs;
-	bool mCursorHidden;
+	bool mModeAuto;
+	bool mTermChanged;
 	bool mDone;
 	bool mLastKeyWasTab;
 	char mCmdInBuf[cNumCmdInBuffer][cSizeBufCmdIn];
@@ -156,6 +159,7 @@ private:
 #endif
 	uint16_t mIdxColCursor;
 	uint16_t mIdxColLineEnd;
+	char mBufOut[cSizeBufCmdOut];
 
 	/* static functions */
 #if CONFIG_PROC_HAVE_CHRONO

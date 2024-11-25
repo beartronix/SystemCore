@@ -7,7 +7,7 @@
 
   File created on 12.05.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -31,13 +31,8 @@
 #include <string.h>
 
 #include "SystemDebugging.h"
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-#include "env.h"
-#endif
 
 using namespace std;
-
-#define LOG_LVL	0
 
 typedef list<struct SystemDebuggingPeer>::iterator PeerIter;
 
@@ -61,19 +56,18 @@ static char buffProcTree[8192];
 SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 	: Processing("SystemDebugging")
 	, mpTreeRoot(pTreeRoot)
-	, mListenLocal(false)
-	, mUpdateMs(500)
 	, mpLstProc(NULL)
 	, mpLstLog(NULL)
 	, mpLstCmd(NULL)
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-	, mpLstEnv(NULL)
-	, mEnvironment("")
-	, mEnvironmentChanged(false)
-#endif
+	, mpLstCmdAuto(NULL)
+	, mPeerList()
 	, mProcTree("")
+	, mListenLocal(false)
 	, mProcTreeChanged(false)
 	, mProcTreePeerAdded(false)
+	, mPeerLogOnceConnected(false)
+	, mUpdateMs(500)
+	, mProcTreeChangedTime(0)
 	, mPortStart(3000)
 {
 }
@@ -94,6 +88,11 @@ void SystemDebugging::levelLogSet(int lvl)
 	levelLog = lvl;
 }
 
+bool SystemDebugging::ready()
+{
+	return mPeerLogOnceConnected;
+}
+
 Success SystemDebugging::initialize()
 {
 	mPeerList.clear();
@@ -112,7 +111,7 @@ Success SystemDebugging::initialize()
 	if (!mpLstLog)
 		return procErrLog(-1, "could not create process");
 
-	mpLstLog->portSet(mPortStart + 1, mListenLocal);
+	mpLstLog->portSet(mPortStart + 2, mListenLocal);
 
 	start(mpLstLog);
 #endif
@@ -121,25 +120,26 @@ Success SystemDebugging::initialize()
 	if (!mpLstCmd)
 		return procErrLog(-1, "could not create process");
 
-	mpLstCmd->portSet(mPortStart + 2, mListenLocal);
+	mpLstCmd->portSet(mPortStart + 4, mListenLocal);
 	mpLstCmd->maxConnSet(4);
 
 	start(mpLstCmd);
 
-	cmdReg("detailed", &SystemDebugging::procTreeDetailedToggle, "d", "toggle detailed process tree output", cInternalCmdCls);
-	cmdReg("colored", &SystemDebugging::procTreeColoredToggle, "", "toggle colored process tree output", cInternalCmdCls);
-
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-	mpLstEnv = TcpListening::create();
-	if (!mpLstEnv)
+	mpLstCmdAuto = TcpListening::create();
+	if (!mpLstCmdAuto)
 		return procErrLog(-1, "could not create process");
 
-	mpLstEnv->portSet(mPortStart + 3);
+	mpLstCmdAuto->portSet(mPortStart + 6, mListenLocal);
+	mpLstCmdAuto->maxConnSet(4);
 
-	start(mpLstEnv);
-#endif
+	start(mpLstCmdAuto);
 
-	pFctLogEntryCreatedSet(SystemDebugging::logEntryCreated);
+	//cmdReg("detailed", &SystemDebugging::procTreeDetailedToggle, "", "toggle detailed process tree output", cInternalCmdCls);
+	//cmdReg("colored", &SystemDebugging::procTreeColoredToggle, "", "toggle colored process tree output", cInternalCmdCls);
+	cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
+	cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
+
+	entryLogCreateSet(SystemDebugging::entryLogCreate);
 
 	return Positive;
 }
@@ -147,15 +147,12 @@ Success SystemDebugging::initialize()
 Success SystemDebugging::process()
 {
 	peerListUpdate();
+	commandAutoProcess();
 
 	processTreeSend();
 #if CONFIG_PROC_HAVE_LOG
 	logEntriesSend();
 #endif
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-	environmentSend();
-#endif
-
 	return Pending;
 }
 
@@ -166,15 +163,35 @@ Success SystemDebugging::shutdown()
 
 void SystemDebugging::peerListUpdate()
 {
-	peerRemove();
+	peerCheck();
 	peerAdd(mpLstProc, PeerProc, "process tree");
 #if CONFIG_PROC_HAVE_LOG
 	peerAdd(mpLstLog, PeerLog, "log");
 #endif
 	peerAdd(mpLstCmd, PeerCmd, "command");
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-	peerAdd(mpLstEnv, PeerEnv, "environment");
-#endif
+}
+
+void SystemDebugging::commandAutoProcess()
+{
+	PipeEntry<SOCKET> peerFd;
+	SystemCommanding *pCmd;
+
+	while (1)
+	{
+		if (mpLstCmdAuto->ppPeerFd.get(peerFd) < 1)
+			break;
+
+		pCmd = SystemCommanding::create(peerFd.particle);
+		if (!pCmd)
+		{
+			procErrLog(-1, "could not create process");
+			continue;
+		}
+
+		pCmd->modeAutoSet();
+
+		whenFinishedRepel(start(pCmd));
+	}
 }
 
 bool SystemDebugging::disconnectRequestedCheck(TcpTransfering *pTrans)
@@ -202,20 +219,20 @@ bool SystemDebugging::disconnectRequestedCheck(TcpTransfering *pTrans)
 
 	if ((buf[0] == 0x03) || (buf[0] == 0x04))
 	{
-		procInfLog("end of transmission");
+		procDbgLog("end of transmission");
 		return true;
 	}
 
 	if (!strncmp(buf, cSeqCtrlC.c_str(), cLenSeqCtrlC))
 	{
-		procInfLog("transmission cancelled");
+		procDbgLog("transmission cancelled");
 		return true;
 	}
 
 	return false;
 }
 
-void SystemDebugging::peerRemove()
+void SystemDebugging::peerCheck()
 {
 	PeerIter iter;
 	struct SystemDebuggingPeer peer;
@@ -228,8 +245,15 @@ void SystemDebugging::peerRemove()
 		peer = *iter;
 		pProc = peer.pProc;
 
-		if (peer.type == PeerProc || peer.type == PeerLog)
+		if (peer.type == PeerProc)
 			disconnectReq = disconnectRequestedCheck((TcpTransfering *)pProc);
+		else
+		if (peer.type == PeerLog)
+		{
+			TcpTransfering *pTrans = (TcpTransfering *)pProc;
+			disconnectReq = disconnectRequestedCheck(pTrans);
+			mPeerLogOnceConnected |= pTrans->mSendReady;
+		}
 		else
 			disconnectReq = false;
 
@@ -240,7 +264,7 @@ void SystemDebugging::peerRemove()
 			continue;
 		}
 
-		procDbgLog(LOG_LVL, "removing %s peer. process: %p", peer.typeDesc.c_str(), pProc);
+		procDbgLog("removing %s peer. process: %p", peer.typeDesc.c_str(), pProc);
 		repel(pProc);
 
 		iter = mPeerList.erase(iter);
@@ -249,21 +273,18 @@ void SystemDebugging::peerRemove()
 
 void SystemDebugging::peerAdd(TcpListening *pListener, enum PeerType peerType, const char *pTypeDesc)
 {
-	SOCKET peerFd;
+	PipeEntry<SOCKET> peerFd;
 	Processing *pProc = NULL;
 	struct SystemDebuggingPeer peer;
 
 	while (1)
 	{
-		if (pListener->ppPeerFd.isEmpty())
+		if (pListener->ppPeerFd.get(peerFd) < 1)
 			break;
-
-		peerFd = pListener->ppPeerFd.front();
-		pListener->ppPeerFd.pop();
 
 		if (peerType == PeerCmd)
 		{
-			pProc = SystemCommanding::create(peerFd);
+			pProc = SystemCommanding::create(peerFd.particle);
 			if (!pProc)
 			{
 				procErrLog(-1, "could not create process");
@@ -275,7 +296,7 @@ void SystemDebugging::peerAdd(TcpListening *pListener, enum PeerType peerType, c
 			continue;
 		}
 
-		pProc = TcpTransfering::create(peerFd);
+		pProc = TcpTransfering::create(peerFd.particle);
 		if (!pProc)
 		{
 			procErrLog(-1, "could not create process");
@@ -284,7 +305,7 @@ void SystemDebugging::peerAdd(TcpListening *pListener, enum PeerType peerType, c
 
 		start(pProc);
 
-		procDbgLog(LOG_LVL, "adding %s peer. process: %p", pTypeDesc, pProc);
+		procDbgLog("adding %s peer. process: %p", pTypeDesc, pProc);
 
 		peer.type = peerType;
 		peer.typeDesc = pTypeDesc;
@@ -297,14 +318,6 @@ void SystemDebugging::peerAdd(TcpListening *pListener, enum PeerType peerType, c
 			mProcTreeChangedTime -= mUpdateMs;
 			mProcTreePeerAdded = true;
 		}
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-		else
-		if (peerType == PeerEnv)
-		{
-			mEnvironment = "";
-			mEnvironmentChangedTime -= mUpdateMs;
-		}
-#endif
 	}
 }
 
@@ -337,8 +350,8 @@ void SystemDebugging::processTreeSend()
 
 	mProcTreePeerAdded = false;
 
-	//procDbgLog(LOG_LVL, "process tree changed");
-	//procDbgLog(LOG_LVL, "\n%s", procTree.c_str());
+	//procDbgLog("process tree changed");
+	//procDbgLog("\n%s", procTree.c_str());
 
 	string msg("\033[2J\033[H");
 
@@ -409,59 +422,36 @@ void SystemDebugging::logEntriesSend()
 }
 #endif
 
-#if CONFIG_DBG_HAVE_ENVIRONMENT
-void SystemDebugging::environmentSend()
-{
-	if (mEnvironmentChanged)
-	{
-		uint32_t diffMs = nowMs() - mEnvironmentChangedTime;
-
-		if (diffMs < mUpdateMs)
-			return;
-
-		mEnvironmentChanged = false;
-	}
-#if CONFIG_PROC_HAVE_DRIVERS
-	Guard lock(envMtx);
-#endif
-	StreamWriterBuilder envBuilder;
-	envBuilder["indentation"] = "    ";
-	string environment = writeString(envBuilder, env);
-
-	if (environment == mEnvironment)
-		return;
-
-	string msg("\033[2J\033[H");
-
-	msg += environment;
-
-	PeerIter iter;
-	struct SystemDebuggingPeer peer;
-	TcpTransfering *pTrans = NULL;
-
-	iter = mPeerList.begin();
-	while (iter != mPeerList.end())
-	{
-		peer = *iter++;
-		pTrans = (TcpTransfering *)peer.pProc;
-
-		if (peer.type == PeerEnv)
-			pTrans->send(msg.c_str(), msg.size());
-	}
-
-	mEnvironment = environment;
-
-	mEnvironmentChanged = true;
-	mEnvironmentChangedTime = nowMs();
-}
-#endif
-
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
 {
 	dInfo("Update period [ms]\t\t%d\n", (int)mUpdateMs);
 }
 
 /* static functions */
+void SystemDebugging::cmdLevelLogSet(char *pArgs, char *pBuf, char *pBufEnd)
+{
+	const int lvlDefault = 2;
+	int lvl = pArgs ? atoi(pArgs) : lvlDefault;
+
+	if (lvl < 0)
+		lvl = lvlDefault;
+
+	::levelLogSet(lvl);
+	dInfo("Log level set to %d", lvl);
+}
+
+void SystemDebugging::cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd)
+{
+	const int lvlDefault = 2;
+	int lvl = pArgs ? atoi(pArgs) : lvlDefault;
+
+	if (lvl < 0)
+		lvl = lvlDefault;
+
+	levelLogSet(lvl);
+	dInfo("System log level set to %d", lvl);
+}
+
 void SystemDebugging::procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd)
 {
 	(void)pArgs;
@@ -482,7 +472,7 @@ void SystemDebugging::procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufE
 #endif
 }
 
-void SystemDebugging::logEntryCreated(
+void SystemDebugging::entryLogCreate(
 		const int severity,
 		const char *filename,
 		const char *function,

@@ -11,14 +11,14 @@ if [ -z "$1" ]; then
 	echo "Examples"
 	echo ""
 	echo "Input:"
-	echo "cppprocessing.sh eat"
+	echo "cppanimating.sh eat"
 	echo ""
 	echo "Result:"
 	echo "Eating.cpp"
 	echo "Eating.h"
 	echo ""
 	echo "Input:"
-	echo "cppprocessing.sh banana-eat"
+	echo "cppanimating.sh banana-eat"
 	echo ""
 	echo "Result:"
 	echo "BananaEating.cpp"
@@ -83,15 +83,15 @@ dProcessStateStr(ProcState);
 using namespace std;
 
 ${classname}::${classname}()
-	: Processing("${classname}")
-	//, mStartMs(0)
+	: PhyAnimating("${classname}")
+	, mStartMs(0)
 {
 	mState = StStart;
 }
 
 /* member functions */
 
-Success ${classname}::process()
+Success ${classname}::animate()
 {
 	//uint32_t curTimeMs = millis();
 	//uint32_t diffMs = curTimeMs - mStartMs;
@@ -102,6 +102,12 @@ Success ${classname}::process()
 	switch (mState)
 	{
 	case StStart:
+
+		// Use ui???Add() functions here
+		// And don't forget to check the pointers ;)
+
+		mpWindow->setWindowTitle("??? - Animating()");
+		mpWindow->show();
 
 		mState = StMain;
 
@@ -160,9 +166,9 @@ cat > $hppfilename << EOF
 #ifndef ${headerdef}_H
 #define ${headerdef}_H
 
-#include "Processing.h"
+#include "PhyAnimating.h"
 
-class ${classname} : public Processing
+class ${classname} : public PhyAnimating
 {
 
 public:
@@ -188,11 +194,11 @@ private:
 	 */
 
 	/* member functions */
-	Success process();
+	Success animate();
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	/* member variables */
-	//uint32_t mStartMs;
+	uint32_t mStartMs;
 
 	/* static functions */
 

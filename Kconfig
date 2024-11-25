@@ -21,9 +21,15 @@ config PROC_HAVE_LIB_STD_CPP
 
 config PROC_INFO_BUFFER_SIZE
 	int "Process info buffer size"
-	default "1024"
+	default "1021"
 	help
 		Number of bytes for process info buffer
+
+config CMD_SIZE_BUFFER_OUT
+	int "Command output buffer size"
+	default "2017"
+	help
+		Maximum size for command output messages
 
 endmenu
 

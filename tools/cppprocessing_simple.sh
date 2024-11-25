@@ -11,14 +11,14 @@ if [ -z "$1" ]; then
 	echo "Examples"
 	echo ""
 	echo "Input:"
-	echo "cppclass.sh eat"
+	echo "cppprocessing.sh eat"
 	echo ""
 	echo "Result:"
 	echo "Eating.cpp"
 	echo "Eating.h"
 	echo ""
 	echo "Input:"
-	echo "cppclass.sh banana-eat"
+	echo "cppprocessing.sh banana-eat"
 	echo ""
 	echo "Result:"
 	echo "BananaEating.cpp"
@@ -51,19 +51,9 @@ ${classname}::${classname}()
 
 /* member functions */
 
-Success ${classname}::initialize()
-{
-	return Positive;
-}
-
 Success ${classname}::process()
 {
 	return Pending;
-}
-
-Success ${classname}::shutdown()
-{
-	return Positive;
 }
 
 void ${classname}::processInfo(char *pBuf, char *pBufEnd)
@@ -91,7 +81,7 @@ public:
 
 	static ${classname} *create()
 	{
-		return new (std::nothrow) ${classname};
+		return new dNoThrow ${classname};
 	}
 
 protected:
@@ -101,8 +91,8 @@ protected:
 
 private:
 
-	${classname}(const ${classname} &) : Processing("") {}
-	${classname} &operator=(const ${classname} &) { return *this; }
+	${classname}(const ${classname} &) = delete;
+	${classname} &operator=(const ${classname} &) = delete;
 
 	/*
 	 * Naming of functions:  objectVerb()
@@ -110,9 +100,7 @@ private:
 	 */
 
 	/* member functions */
-	Success initialize();
 	Success process();
-	Success shutdown();
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	/* member variables */

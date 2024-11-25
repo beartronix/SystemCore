@@ -7,7 +7,7 @@
 
   File created on 21.05.2019
 
-  Copyright (C) 2019-now Authors and www.dsp-crowd.com
+  Copyright (C) 2019, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@
 #ifndef TCP_LISTENING_H
 #define TCP_LISTENING_H
 
+#include <string>
 #include <list>
 
 #ifdef _WIN32
@@ -100,11 +101,12 @@ private:
 		return *this;
 	}
 
-	Success initialize();
 	Success process();
 	Success shutdown();
 
-	Success connectionsAccept();
+	Success socketCreate(bool isIPv6, SOCKET &fdLst, std::string &strAddr);
+	Success connectionsAccept(SOCKET &fdLst);
+	void socketClose(SOCKET &fd);
 
 	int errGet();
 	std::string errnoToStr(int num);
@@ -112,12 +114,16 @@ private:
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	uint16_t mPort;
+	bool mLocalOnly;
 	size_t mMaxConn;
 	bool mInterrupted;
 	uint32_t mCntSkip;
 
-	SOCKET mListeningFd;
-	struct sockaddr_in mAddress;
+	SOCKET mFdLstIPv4;
+	SOCKET mFdLstIPv6;
+	std::string mAddress;
+	std::string mAddrIPv4;
+	std::string mAddrIPv6;
 
 	// statistics
 	uint32_t mConnCreated;

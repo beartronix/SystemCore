@@ -1,6 +1,7 @@
+[![Standard](https://img.shields.io/badge/standard-C%2B%2B11-blue.svg?style=plastic&logo=c%2B%2B)](https://en.wikipedia.org/wiki/C%2B%2B#Standardization)
+![GitHub](https://img.shields.io/github/license/NoOrientationProgramming/ProcessingCore?style=plastic&color=blue)
 
-![GitHub](https://img.shields.io/github/license/NoOrientationProgramming/ProcessingCore?style=plastic)
-<!-- ![Lines of code](https://img.shields.io/tokei/lines/github/NoOrientationProgramming/ProcessingCore?style=plastic) -->
+[![Linux Native](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/linux-native.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/linux-native.yml) [![Windows Native](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/windows-native.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/windows-native.yml) [![MacOS Native](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/macos-native.yml/badge.svg)](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/macos-native.yml) [![Cross arm & mingw](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/arm-and-mingw.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/ProcessingBuildTest/actions/workflows/arm-and-mingw.yml)
 
 These files provide a basic structure for almost all applications and a powerful debugging system.
 
@@ -21,18 +22,49 @@ However, your coding style is not restricted in any way! Similar to LaTeX, focus
 
 - C++ standard as low as C++11 can be used
 - On Microcontrollers: Minimum of 32k flash memory
-- Nothing else
 
 ## Status
 
 - Mature code created in 2018
-- Finished
+- Almost finished
+
+## Supported Targets
+
+The code of this repository is already very mature and has been successfully used on the following systems
+
+- Linux / Raspberry Pi
+  - GCC
+- Windows
+  - MinGW
+  - MSVC
+- ESP32
+- FreeBSD
+- STM32G030 - Only Processing()
+  - Bare Metal
+
+## Learn how to use it
+
+The [Tutorials](https://github.com/NoOrientationProgramming/ProcessingTutorials) provide more information on how to delve into this wonderful (recursive) world ..
+
+### How to add to your project
+
+`git submodule add https://github.com/NoOrientationProgramming/ProcessingCore.git`
+
+### Use Templates!
+
+To implement a new process you can use the provided shell scripts on linux: [cppprocessing.sh](https://github.com/NoOrientationProgramming/ProcessingCore/blob/main/tools/cppprocessing.sh) / [cppprocessing_simple.sh](https://github.com/NoOrientationProgramming/ProcessingCore/blob/main/tools/cppprocessing_simple.sh)
+
+Or just create your own..
 
 ## Intro
 
 The key element consists of a single file named Processing.cpp. This file contains an abstract C++ class, which handles the processing of tasks within larger systems. The class serves as the foundation for implementing concrete user processes.
 
-=> TODO: Core picture
+<p align="center">
+  <kbd>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/system/core-dependencies.svg" style="max-width:100%"/>
+  </kbd>
+</p>
 
 When using the Processing() class the entire system structure is recursive. This has a big and very beneficial impact during development, runtime, documentation and communication with other team members independent of their background.
 
@@ -126,7 +158,7 @@ Success Supervising::initialize()
 
 After a process has been started, it simply continues running in the background and completes its work. The parent process itself decides when to check for the completion of the activity. Although a callback can also be implemented as an alternative, we would advise against it. When callbacks are used, the parent process must deal with the 'interruption' at all times and must not be negatively affected by it. It's easier to simply ask the child process occasionally. Even if the child process has already finished the activity, the parent process is not obligated to accept the data. Thus, the child process even acts as a buffer for the achieved results. This is very practical and simplifies development.
 
-Here we already see an important distinction between functions and processes. A function is an immediate mapping between its inputs and outputs. Outputs could be divided into an error code or success and a result. The success of a function can thus be either negative (<0) or positive (1). Negative events should preferably always be processed first to avoid nesting of program code. This way, developers read the code linearly from top to bottom, simplifying development further. Now, a process is very similar to a function. However, the mapping does not occur instantaneously but takes too much time to wait for the result. Therefore, the success of a process has an additional state: Pending (0). Only when a process has completed its activity is the success either positive or any negative value. Processes can be divided based on the type of delay into
+Here we already see an important distinction between functions and processes. A function is an immediate mapping between its inputs and outputs. Outputs could be divided into an error code (&rarr; success) and a result. The success of a function can thus be either negative (<0) or positive (1). Negative events should preferably always be processed first to avoid nesting of program code. This way, developers read the code linearly from top to bottom, simplifying development further. Now, a process is very similar to a function. However, the mapping does not occur instantaneously but takes too much time to wait for the result. Therefore, the success of a process has an additional state: Pending (0). Only when a process has completed its activity is the success either positive or any negative value. Processes can be divided based on the type of delay into
 
 1. Communication-bound processes
 1. Work-bound processes
@@ -195,34 +227,17 @@ Success Supervising::initialize()
 }
 ```
 
-## Supported Targets
-
-The code of this repository is already very mature and has been successfully used on the following systems
-
-- STM32G030
-  - Bare Metal
-- ESP32
-- Linux / Raspberry Pi
-  - GCC
-- FreeBSD
-- Windows
-  - MinGW
-  - MSVC
-
-## Learn how to use it
-
-The [Tutorials](https://github.com/NoOrientationProgramming/ProcessingTutorials) provide more information on how to delve into this wonderful (recursive) world ..
-
-### How to add to your project
-
-`git submodule add https://github.com/NoOrientationProgramming/ProcessingCore.git`
-
 ## Why is recursion so important?
 
-=> TODO: Recursion picture
-
+TODO
 - Always the same => Realizes the KISS prinziple
-- Code is self-similar => Refactoring is done by just moving code around => No structural changes needed.
+- Code is self-similar => Refactoring is done by just moving code around => No structural changes needed
+
+<p align="center">
+  <kbd>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/system/recursion.svg" style="width:700px;max-width:100%"/>
+  </kbd>
+</p>
 
 ## FAQ
 
@@ -230,7 +245,7 @@ Q: Isn't this some kind of operating system?
 A: No. There is no such thing as an operating system. Every piece of software should be structured this way.
 
 Q: Aren't these micro services?  
-A: Not exactly. These processes reside in the application itself. They are more similar to Go-/co-routines, tasklets or async-wait structures.
+A: Not exactly. These processes reside in the application itself. They are more similar to Go-/co-routines, tasklets or async-await structures.
 
 Q: Isn't it ineffective to poll for the result of a child process instead of using callbacks and event driven design?  
 A: No. Because: TODO

@@ -7,7 +7,7 @@
 
   File created on 14.09.2018
 
-  Copyright (C) 2018-now Authors and www.dsp-crowd.com
+  Copyright (C) 2018, Johannes Natter
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,9 @@
 */
 
 #include "Processing.h"
+
+#define coreLog(m, ...)					(genericLog(5, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
+#define procCoreLog(m, ...)				(genericLog(5, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
 
 #if CONFIG_PROC_HAVE_DRIVERS
 #define CONFIG_PROC_TITLE_NEW_DRIVER
@@ -74,8 +77,6 @@ enum ProcStatBitDriver
 using namespace std;
 #endif
 
-#define LOG_LVL	1
-
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
 typedef list<Processing *>::iterator ChildIter;
 #endif
@@ -85,10 +86,18 @@ uint8_t Processing::disableTreeDefault = CONFIG_PROC_DISABLE_TREE_DEFAULT;
 
 #if CONFIG_PROC_HAVE_GLOBAL_DESTRUCTORS
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
-list<GlobDestructorFunc> Processing::globalDestructors;
+list<FuncGlobDestruct> Processing::globalDestructors;
 #else
-GlobDestructorFunc *Processing::pGlobalDestructors = NULL;
+FuncGlobDestruct *Processing::pGlobalDestructors = NULL;
 #endif
+#endif
+
+#if CONFIG_PROC_HAVE_DRIVERS
+size_t Processing::sleepInternalDriveUs = 2000;
+size_t Processing::numBurstInternalDrive = 13;
+FuncInternalDrive Processing::pFctInternalDrive = Processing::internalDrive;
+FuncDriverInternalCreate Processing::pFctDriverInternalCreate = Processing::driverInternalCreate;
+FuncDriverInternalCleanUp Processing::pFctDriverInternalCleanUp = Processing::driverInternalCleanUp;
 #endif
 
 /* Literature
@@ -135,12 +144,12 @@ void Processing::treeTick()
 		char childId[CONFIG_PROC_ID_BUFFER_SIZE];
 		procId(childId, childId + sizeof(childId), pChild);
 
-		procDbgLog(LOG_LVL, "removing %s from child list", childId);
+		procCoreLog("removing %s from child list", childId);
 		{
 #if CONFIG_PROC_HAVE_DRIVERS
-			procDbgLog(LOG_LVL, "Locking mChildListMtx");
+			procCoreLog("Locking mChildListMtx");
 			Guard lock(mChildListMtx);
-			procDbgLog(LOG_LVL, "Locking mChildListMtx: done");
+			procCoreLog("Locking mChildListMtx: done");
 #endif
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
 			iter = mChildList.erase(iter);
@@ -149,7 +158,7 @@ void Processing::treeTick()
 			pChildListElem = childElemErase(pChildListElem);
 #endif
 		}
-		procDbgLog(LOG_LVL, "removing %s from child list: done", childId);
+		procCoreLog("removing %s from child list: done", childId);
 
 		destroy(pChild);
 	}
@@ -185,12 +194,12 @@ void Processing::treeTick()
 #endif
 		if (mStatParent & PsbParCanceled)
 		{
-			procDbgLog(LOG_LVL, "process canceled during state existent");
+			procCoreLog("process canceled during state existent");
 			mStateAbstract = PsFinishedPrepare;
 			break;
 		}
 
-		procDbgLog(LOG_LVL, "initializing()");
+		procCoreLog("initializing()");
 		mStateAbstract = PsInitializing;
 
 		break;
@@ -198,8 +207,8 @@ void Processing::treeTick()
 
 		if (mStatParent & PsbParCanceled)
 		{
-			procDbgLog(LOG_LVL, "process canceled during initializing");
-			procDbgLog(LOG_LVL, "downShutting()");
+			procCoreLog("process canceled during initializing");
+			procCoreLog("downShutting()");
 			mStateAbstract = PsDownShutting;
 			break;
 		}
@@ -212,16 +221,16 @@ void Processing::treeTick()
 		if (success != Positive)
 		{
 			mSuccess = success;
-			procDbgLog(LOG_LVL, "initializing(): failed. success = %d", (int)mSuccess);
-			procDbgLog(LOG_LVL, "downShutting()");
+			procCoreLog("initializing(): failed. success = %d", int(mSuccess));
+			procCoreLog("downShutting()");
 			mStateAbstract = PsDownShutting;
 			break;
 		}
 
-		procDbgLog(LOG_LVL, "initializing(): done");
+		procCoreLog("initializing(): done");
 		mStatDrv |= PsbDrvInitDone;
 
-		procDbgLog(LOG_LVL, "processing()");
+		procCoreLog("processing()");
 		mStateAbstract = PsProcessing;
 
 		break;
@@ -229,8 +238,8 @@ void Processing::treeTick()
 
 		if (mStatParent & PsbParCanceled)
 		{
-			procDbgLog(LOG_LVL, "process canceled during processing");
-			procDbgLog(LOG_LVL, "downShutting()");
+			procCoreLog("process canceled during processing");
+			procCoreLog("downShutting()");
 			mStateAbstract = PsDownShutting;
 			break;
 		}
@@ -242,10 +251,10 @@ void Processing::treeTick()
 
 		mSuccess = success;
 
-		procDbgLog(LOG_LVL, "processing(): done. success = %d", (int)mSuccess);
+		procCoreLog("processing(): done. success = %d", int(mSuccess));
 		mStatDrv |= PsbDrvProcessDone;
 
-		procDbgLog(LOG_LVL, "downShutting()");
+		procCoreLog("downShutting()");
 		mStateAbstract = PsDownShutting;
 
 		break;
@@ -256,7 +265,7 @@ void Processing::treeTick()
 		if (success == Pending)
 			break;
 
-		procDbgLog(LOG_LVL, "downShutting(): done");
+		procCoreLog("downShutting(): done");
 		mStatDrv |= PsbDrvShutdownDone;
 
 		mStateAbstract = PsChildrenUnusedSet;
@@ -264,7 +273,7 @@ void Processing::treeTick()
 		break;
 	case PsChildrenUnusedSet:
 
-		procDbgLog(LOG_LVL, "marking children as unused");
+		procCoreLog("marking children as unused");
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
 		iter = mChildList.begin();
 		while (iter != mChildList.end())
@@ -278,22 +287,22 @@ void Processing::treeTick()
 #endif
 			pChild->unusedSet();
 		}
-		procDbgLog(LOG_LVL, "marking children as unused: done");
+		procCoreLog("marking children as unused: done");
 
 		mStateAbstract = PsFinishedPrepare;
 
 		break;
 	case PsFinishedPrepare:
 
-		procDbgLog(LOG_LVL, "preparing finish");
+		procCoreLog("preparing finish");
 
 		if (mStatParent & PsbParWhenFinishedUnused)
 		{
-			procDbgLog(LOG_LVL, "set process as unused when finished");
+			procCoreLog("set process as unused when finished");
 			unusedSet();
 		}
 
-		procDbgLog(LOG_LVL, "preparing finish: done -> finished");
+		procCoreLog("preparing finish: done -> finished");
 
 		mStateAbstract = PsFinished;
 
@@ -486,7 +495,7 @@ void Processing::destroy(Processing *pChild)
 	char childId[CONFIG_PROC_ID_BUFFER_SIZE];
 	procId(childId, childId + sizeof(childId), pChild);
 
-	dbgLog(LOG_LVL, "child %s destroy()", childId);
+	coreLog("child %s destroy()", childId);
 
 	if (pChild->mNumChildren)
 		errLog(-1, "destroying child with grand children");
@@ -494,50 +503,43 @@ void Processing::destroy(Processing *pChild)
 #if !CONFIG_PROC_HAVE_LIB_STD_CPP
 	if (pChild->mpChildList)
 	{
-		dbgLog(LOG_LVL, "child %s deleting child list", childId);
+		coreLog("child %s deleting child list", childId);
 		delete[] pChild->mpChildList;
 		pChild->mpChildList = NULL;
-		dbgLog(LOG_LVL, "child %s deleting child list: done", childId);
+		coreLog("child %s deleting child list: done", childId);
 	}
 #endif
-
 #if CONFIG_PROC_HAVE_DRIVERS
-	if (pChild->mpThread)
+	if (pChild->mpDriver)
 	{
-		dbgLog(LOG_LVL, "thread join()");
-		if (pChild->mpThread->joinable())
-			pChild->mpThread->join();
-		dbgLog(LOG_LVL, "thread join(): done");
-
-		dbgLog(LOG_LVL, "thread delete()");
-		delete pChild->mpThread;
-		pChild->mpThread = NULL;
-		dbgLog(LOG_LVL, "thread delete(): done");
+		coreLog("driver cleanup");
+		pFctDriverInternalCleanUp(pChild->mpDriver);
+		pChild->mpDriver = NULL;
+		coreLog("driver cleanup: done");
 	}
 #endif
-
-	dbgLog(LOG_LVL, "child %s delete()", childId);
+	coreLog("child %s delete()", childId);
 	delete pChild;
-	dbgLog(LOG_LVL, "child %s delete(): done", childId);
+	coreLog("child %s delete(): done", childId);
 
-	dbgLog(LOG_LVL, "child %s destroy(): done", childId);
+	coreLog("child %s destroy(): done", childId);
 }
 
 void Processing::applicationClose()
 {
-	dbgLog(LOG_LVL, "closing application");
+	coreLog("closing application");
 
 #if CONFIG_PROC_HAVE_GLOBAL_DESTRUCTORS
-	dbgLog(LOG_LVL, "executing global destructors");
+	coreLog("executing global destructors");
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
-	list<GlobDestructorFunc>::iterator iter = globalDestructors.begin();
+	list<FuncGlobDestruct>::iterator iter = globalDestructors.begin();
 
 	while (iter != globalDestructors.end())
 		(*iter++)();
 
 	globalDestructors.clear();
 #else
-	GlobDestructorFunc *pGlobDestrListElem = pGlobalDestructors;
+	FuncGlobDestruct *pGlobDestrListElem = pGlobalDestructors;
 
 	while (pGlobDestrListElem && *pGlobDestrListElem)
 		(*pGlobDestrListElem++)();
@@ -545,31 +547,30 @@ void Processing::applicationClose()
 	if (pGlobalDestructors)
 		delete[] pGlobalDestructors;
 #endif
-	dbgLog(LOG_LVL, "executing global destructors: done");
+	coreLog("executing global destructors: done");
 #else
-	dbgLog(LOG_LVL, "global destructors disabled");
+	coreLog("global destructors disabled");
 #endif
 
-	dbgLog(LOG_LVL, "closing application: done");
+	coreLog("closing application: done");
 }
 
-void Processing::globalDestructorRegister(GlobDestructorFunc globDestr)
+void Processing::globalDestructorRegister(FuncGlobDestruct globDestr)
 {
 #if CONFIG_PROC_HAVE_GLOBAL_DESTRUCTORS
-	dbgLog(LOG_LVL, "");
+	coreLog("");
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
 	globalDestructors.push_front(globDestr);
 	globalDestructors.unique();
-	dbgLog(LOG_LVL, ": done");
+	coreLog(": done");
 #else
-	GlobDestructorFunc *pGlobDestrListElem = NULL;
+	FuncGlobDestruct *pGlobDestrListElem = NULL;
 
 	if (!pGlobalDestructors)
 	{
 		size_t numDestrElements = CONFIG_PROC_NUM_MAX_GLOBAL_DESTRUCTORS + 1;
 
-		pGlobalDestructors = new (std::nothrow) GlobDestructorFunc[numDestrElements];
-
+		pGlobalDestructors = new dNoThrow FuncGlobDestruct[numDestrElements];
 		if (!pGlobalDestructors)
 		{
 			errLog(-1, "could not allocate global destructor list");
@@ -587,7 +588,7 @@ void Processing::globalDestructorRegister(GlobDestructorFunc globDestr)
 		if (!*pGlobDestrListElem)
 		{
 			*pGlobDestrListElem = globDestr;
-			dbgLog(LOG_LVL, ": done");
+			coreLog(": done");
 			return;
 		}
 
@@ -629,30 +630,83 @@ void *Processing::memcpy(void *to, const void *from, size_t cnt)
 }
 #endif
 
+#if CONFIG_PROC_HAVE_DRIVERS
+void Processing::sleepUsInternalDriveSet(size_t delayUs)
+{
+#if defined(__linux__) || defined(__FreeBSD__) || defined(_WIN32)
+	if (!delayUs)
+		wrnLog("Sleep time for internal drivers set to zero => Busy loop");
+#endif
+	sleepInternalDriveUs = delayUs;
+}
+
+void Processing::sleepInternalDriveSet(chrono::microseconds delay)
+{
+	sleepUsInternalDriveSet(delay.count());
+}
+
+void Processing::sleepInternalDriveSet(chrono::milliseconds delay)
+{
+	sleepUsInternalDriveSet(delay.count() * 1000);
+}
+
+void Processing::numBurstInternalDriveSet(size_t numBurst)
+{
+	if (!numBurst)
+		return;
+
+	numBurstInternalDrive = numBurst;
+}
+
+void Processing::internalDriveSet(FuncInternalDrive pFctDrive)
+{
+	if (!pFctDrive)
+		return;
+
+	pFctInternalDrive = pFctDrive;
+}
+
+void Processing::driverInternalCreateAndCleanUpSet(
+			FuncDriverInternalCreate pFctCreate,
+			FuncDriverInternalCleanUp pFctCleanUp)
+{
+	if (!pFctCreate || !pFctCleanUp)
+		return;
+
+	pFctDriverInternalCreate = pFctCreate;
+	pFctDriverInternalCleanUp = pFctCleanUp;
+}
+#endif
+
 // This area is used by the concrete processes
 
 Processing::Processing(const char *name)
 	: mState(0)
 	, mStateOld(0)
+	, mLevelTree(0)
+	, mLevelDriver(0)
 	, mName(name)
-#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+	, mChildList()
+#else
 	, mpChildList(NULL)
 #endif
 #if CONFIG_PROC_HAVE_DRIVERS
-	, mpThread(NULL)
+	, mChildListMtx()
+	, mpDriver(NULL)
+	, mpConfigDriver(NULL)
 #endif
 	, mSuccess(Pending)
 	, mNumChildren(0)
+	, mStateAbstract(PsExistent)
+	, mStatParent(0)
+	, mDriver(DrivenByExternalDriver)
 #if !CONFIG_PROC_HAVE_LIB_STD_CPP
 	, mNumChildrenMax(CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT)
 #endif
-	, mStateAbstract(PsExistent)
-	, mDriver(DrivenByExternalDriver)
-	, mStatParent(0)
-	, mLevelTree(0)
-	, mLevelDriver(0)
+	//, mStatDrv(0) <- Initialized below
 {
-	procDbgLog(LOG_LVL, "Processing()");
+	procCoreLog("Processing()");
 
 	mStatDrv = 0;
 	if (disableTreeDefault)
@@ -675,9 +729,9 @@ Processing::Processing(const char *name)
 
 Processing::~Processing()
 {
-	procDbgLog(LOG_LVL, "~Processing()");
+	procCoreLog("~Processing()");
 #if CONFIG_PROC_HAVE_DRIVERS
-	procDbgLog(LOG_LVL, "mpThread = 0x%08X", mpThread);
+	procCoreLog("mpDriver = 0x%08X", mpDriver);
 #endif
 }
 
@@ -685,7 +739,7 @@ Processing *Processing::start(Processing *pChild, DriverMode driver)
 {
 	if (!pChild)
 	{
-		procErrLog(-1, "could not start child. NULL pointer");
+		procCoreLog("could not start child. NULL pointer");
 		return NULL;
 	}
 
@@ -701,23 +755,23 @@ Processing *Processing::start(Processing *pChild, DriverMode driver)
 		return NULL;
 	}
 #endif
-
 	char childId[CONFIG_PROC_ID_BUFFER_SIZE];
 	procId(childId, childId + sizeof(childId), pChild);
 
-	procDbgLog(LOG_LVL, "starting %s", childId);
+	procCoreLog("starting %s", childId);
 
 	pChild->mDriver = driver;
 	pChild->mLevelTree = mLevelTree + 1;
 	pChild->mLevelDriver = mLevelDriver;
 	pChild->mStatParent |= PsbParStarted;
 
-	procDbgLog(LOG_LVL, "adding %s to child list", childId);
+	// Add process to child list
+	procCoreLog("adding %s to child list", childId);
 	{
 #if CONFIG_PROC_HAVE_DRIVERS
-		procDbgLog(LOG_LVL, "Locking mChildListMtx");
+		procCoreLog("Locking mChildListMtx");
 		Guard lock(mChildListMtx);
-		procDbgLog(LOG_LVL, "Locking mChildListMtx: done");
+		procCoreLog("Locking mChildListMtx: done");
 #endif
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
 		mChildList.push_back(pChild);
@@ -726,34 +780,40 @@ Processing *Processing::start(Processing *pChild, DriverMode driver)
 		childElemAdd(pChild);
 #endif
 	}
-	procDbgLog(LOG_LVL, "adding %s to child list: done", childId);
+	procCoreLog("adding %s to child list: done", childId);
 
+	// Optionally: Create and start new driver
 	if (driver == DrivenByNewInternalDriver)
 	{
-		procDbgLog(LOG_LVL, "creating new internal driver for %s", childId);
 #if CONFIG_PROC_HAVE_DRIVERS
+		procCoreLog("using new internal driver for %s", childId);
 		++pChild->mLevelDriver;
 
-		pChild->mpThread = new (std::nothrow) std::thread(&Processing::internalDrive, pChild);
-		if (!pChild->mpThread)
-		{
-			procErrLog(-3, "could not allocate internal driver for child");
-			return NULL;
-		}
+		procCoreLog("creating new internal driver");
+		pChild->mpDriver = pFctDriverInternalCreate(pFctInternalDrive, pChild, pChild->mpConfigDriver);
+		pChild->mpConfigDriver = NULL;
 
-		procDbgLog(LOG_LVL, "creating new internal driver for %s: done", childId);
+		if (!pChild->mpDriver)
+		{
+			procWrnLog("could not create internal driver. switching back to parental drive");
+
+			pChild->mDriver = DrivenByParent;
+			--pChild->mLevelDriver;
+		} else
+			procCoreLog("creating new internal driver: done");
 #else
-		procWrnLog("can't create new internal driver because system has no drivers");
+		procWrnLog("system does not have internal drivers. switching back to parental drive");
+		pChild->mDriver = DrivenByParent;
 #endif
 	}
 	else if (driver == DrivenByExternalDriver)
 	{
-		procDbgLog(0, "external driver is used for %s", childId);
+		procCoreLog("using external driver for %s", childId);
 		++pChild->mLevelDriver;
 	} else
-		procDbgLog(LOG_LVL, "using parent as driver for %s", childId);
+		procCoreLog("using parent as driver for %s", childId);
 
-	procDbgLog(LOG_LVL, "starting %s: done", childId);
+	procCoreLog("starting %s: done", childId);
 
 	return pChild;
 }
@@ -781,23 +841,23 @@ Processing *Processing::cancel(Processing *pChild)
 	char childId[CONFIG_PROC_ID_BUFFER_SIZE];
 	procId(childId, childId + sizeof(childId), pChild);
 
-	procDbgLog(LOG_LVL, "canceling %s", childId);
+	procCoreLog("canceling %s", childId);
 	pChild->mStatParent |= PsbParCanceled;
-	procDbgLog(LOG_LVL, "canceling %s: done", childId);
+	procCoreLog("canceling %s: done", childId);
 
 	return pChild;
 }
 
 Processing *Processing::repel(Processing *pChild)
 {
-	procDbgLog(LOG_LVL, "trying to repel child");
+	procCoreLog("trying to repel child");
 
 	if (!cancel(pChild))
 		return NULL;
 
-	procDbgLog(LOG_LVL, "setting child unused");
+	procCoreLog("setting child unused");
 	pChild->unusedSet();
-	procDbgLog(LOG_LVL, "setting child unused: done");
+	procCoreLog("setting child unused: done");
 
 	return NULL;
 }
@@ -819,22 +879,22 @@ Processing *Processing::whenFinishedRepel(Processing *pChild)
 	char childId[CONFIG_PROC_ID_BUFFER_SIZE];
 	procId(childId, childId + sizeof(childId), pChild);
 
-	procDbgLog(LOG_LVL, "repelling %s when finished", childId);
+	procCoreLog("repelling %s when finished", childId);
 	pChild->mStatParent |= PsbParWhenFinishedUnused;
-	procDbgLog(LOG_LVL, "repelling %s when finished: done", childId);
+	procCoreLog("repelling %s when finished: done", childId);
 
 	return NULL;
 }
 
 Success Processing::initialize()
 {
-	procDbgLog(LOG_LVL, "initializing() not used");
+	procCoreLog("initializing() not used");
 	return Positive;
 }
 
 Success Processing::shutdown()
 {
-	procDbgLog(LOG_LVL, "shutdown() not used");
+	procCoreLog("shutdown() not used");
 	return Positive;
 }
 
@@ -916,7 +976,15 @@ void Processing::maxChildrenSet(uint16_t cnt)
 }
 #endif
 
-DriverMode Processing::driver() const	{ return mDriver; }
+DriverMode Processing::driver()	const { return mDriver;		}
+uint8_t Processing::levelDriver()	const { return mLevelDriver;	}
+
+#if CONFIG_PROC_HAVE_DRIVERS
+void Processing::configDriverSet(void *pConfigDriver)
+{
+	mpConfigDriver = pConfigDriver;
+}
+#endif
 
 size_t Processing::procId(char *pBuf, char *pBufEnd, const Processing *pProc)
 {
@@ -984,8 +1052,7 @@ Processing **Processing::childElemAdd(Processing *pChild)
 	{
 		size_t numChildElements = mNumChildrenMax + 1;
 
-		mpChildList = new (std::nothrow) Processing *[numChildElements];
-
+		mpChildList = new dNoThrow Processing *[numChildElements];
 		if (!mpChildList)
 		{
 			procErrLog(-2, "could not allocate child list");
@@ -1046,12 +1113,18 @@ void Processing::parentalDrive(Processing *pChild)
 }
 
 #if CONFIG_PROC_HAVE_DRIVERS
-void Processing::internalDrive(Processing *pChild)
+void Processing::internalDrive(void *pProc)
 {
+	Processing *pChild = (Processing *)pProc;
+	size_t i;
+
 	while (1)
 	{
-		pChild->treeTick();
-		this_thread::sleep_for(chrono::milliseconds(2));
+		for (i = 0; i < numBurstInternalDrive; ++i)
+			pChild->treeTick();
+
+		if (sleepInternalDriveUs)
+			this_thread::sleep_for(chrono::microseconds(sleepInternalDriveUs));
 
 		if (pChild->progress())
 			continue;
@@ -1059,6 +1132,27 @@ void Processing::internalDrive(Processing *pChild)
 		undrivenSet(pChild);
 		break;
 	}
+}
+
+void *Processing::driverInternalCreate(FuncInternalDrive pFctDrive, void *pProc, void *pConfigDriver)
+{
+	(void)pConfigDriver;
+	return new dNoThrow thread(pFctDrive, pProc);
+}
+
+void Processing::driverInternalCleanUp(void *pDriver)
+{
+	thread *pThread = (thread *)pDriver;
+
+	coreLog("thread join()");
+	if (pThread->joinable())
+		pThread->join();
+	coreLog("thread join(): done");
+
+	coreLog("thread delete()");
+	delete pThread;
+	pThread = NULL;
+	coreLog("thread delete(): done");
 }
 #endif
 
