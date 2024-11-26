@@ -114,13 +114,14 @@ Success TcpListening::process()
 		success = socketCreate(false, mFdLstIPv4, mAddrIPv4);
 		if (success != Positive)
 			return procErrLog(-1, "could not create IPv4 socket");
-
+#if IPV6
 		success = socketCreate(true, mFdLstIPv6, mAddrIPv6);
 		if (success != Positive)
 		{
 			procDbgLog("could not create IPv6 socket");
 			socketClose(mFdLstIPv6);
 		}
+#endif
 
 		//procDbgLog("creating listening sockets: done");
 
@@ -199,6 +200,7 @@ Success TcpListening::socketCreate(bool isIPv6, SOCKET &fdLst, string &strAddr)
 		pAddr4->sin_addr.s_addr = mLocalOnly ?
 					htonl(INADDR_LOOPBACK) : htonl(INADDR_ANY);
 	}
+#if IPV6
 	else
 	if (addr.ss_family == AF_INET6)
 	{
@@ -207,6 +209,7 @@ Success TcpListening::socketCreate(bool isIPv6, SOCKET &fdLst, string &strAddr)
 		pAddr6->sin6_port = htons(mPort);
 		pAddr6->sin6_addr = mLocalOnly ? in6addr_loopback : in6addr_any;
 	}
+#endif
 	else
 		return procErrLog(-1, "unknown address family");
 
@@ -226,12 +229,14 @@ Success TcpListening::socketCreate(bool isIPv6, SOCKET &fdLst, string &strAddr)
 	if (fdLst == INVALID_SOCKET)
 		return procErrLog(-1, "socket() failed: %s", errnoToStr(errGet()).c_str());
 
+#if IPV6
 	if (addr.ss_family == AF_INET6)
 	{
 		opt = 1;
 		if (::setsockopt(fdLst, IPPROTO_IPV6, IPV6_V6ONLY, (const char *)&opt, sizeof(opt)))
 			return procErrLog(-1, "setsockopt(IPV6_V6ONLY) failed: %s", errnoToStr(errGet()).c_str());
 	}
+#endif
 
 	opt = 1;
 	if (::setsockopt(fdLst, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(opt)))
@@ -250,8 +255,10 @@ Success TcpListening::socketCreate(bool isIPv6, SOCKET &fdLst, string &strAddr)
 	// Thx to Bananabaer!
 	if (addr.ss_family == AF_INET)
 		addrLen = sizeof(sockaddr_in);
+#if 0
 	else
 		addrLen = sizeof(sockaddr_in6);
+#endif
 	// Important for MacOS: End
 
 	if (::bind(fdLst, (struct sockaddr *)&addr, addrLen) < 0)

@@ -633,19 +633,23 @@ struct sockaddr_storage *TcpTransfering::addrStringToSock(const string &strAddr,
 		return NULL;
 
 	struct sockaddr_in *pAddr4 = (struct sockaddr_in *)pAddr;
+#if IPV6
 	struct sockaddr_in6 *pAddr6 = (struct sockaddr_in6 *)pAddr;
+#endif
 
 	if (inet_pton(AF_INET, strAddr.c_str(), &pAddr4->sin_addr) == 1)
 	{
 		pAddr4->sin_family = AF_INET;
 		pAddr4->sin_port = htons(numPort);
 	}
+#if IPV6
 	else
 	if (inet_pton(AF_INET6, strAddr.c_str(), &pAddr6->sin6_addr) == 1)
 	{
 		pAddr6->sin6_family = AF_INET6;
 		pAddr6->sin6_port = htons(numPort);
 	}
+#endif
 	else
 	{
 		free(pAddr);
@@ -721,7 +725,11 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 								uint16_t &numPort,
 								bool &isIPv6)
 {
+#if IPV6
 	char buf[INET6_ADDRSTRLEN];
+#else
+	char buf[INET_ADDRSTRLEN];
+#endif
 	size_t len = sizeof(buf) - 1;
 	const char *pRes;
 
@@ -734,6 +742,7 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 
 		pRes = ::inet_ntop(pAddr->sin_family, &pAddr->sin_addr, buf, len);
 	}
+#if IPV6
 	else
 	{
 		struct sockaddr_in6 *pAddr = (struct sockaddr_in6 *)&addr;
@@ -743,6 +752,11 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 
 		pRes = ::inet_ntop(pAddr->sin6_family, &pAddr->sin6_addr, buf, len);
 	}
+#else
+	else
+		pRes = nullptr;
+#endif
+
 	if (!pRes)
 		return false;
 
@@ -751,12 +765,14 @@ bool TcpTransfering::sockaddrInfoGet(struct sockaddr_storage &addr,
 	return true;
 }
 
+#if 0
 uint32_t TcpTransfering::millis()
 {
 	auto now = steady_clock::now();
 	auto nowMs = time_point_cast<milliseconds>(now);
 	return (uint32_t)nowMs.time_since_epoch().count();
 }
+#endif
 
 bool TcpTransfering::fileNonBlockingSet(SOCKET fd)
 {

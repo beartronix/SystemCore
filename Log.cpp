@@ -61,12 +61,15 @@ typedef void (*FuncEntryLogCreate)(
 
 static FuncEntryLogCreate pFctEntryLogCreate = NULL;
 
+#if CONFIG_PROC_HAVE_CHRONO
 static system_clock::time_point tOld;
 #endif
 
 const string red("\033[0;31m");
 const string yellow("\033[0;33m");
-const string reset("\033[37m");
+const string green("\033[0;32m");
+const string cyan("\033[0;36m");
+const string reset("\033[0m");
 const int cDiffSecMax = 9;
 const int cDiffMsMax = 999;
 
@@ -100,22 +103,6 @@ static const char *severityToStr(const int severity)
 	return "INV";
 }
 
-const char* severityToStr(const int severity)
-{
-	switch (severity)
-	{
-	case 1:
-		return "ERR";
-	case 2:
-		return "WRN";
-	case 3:
-		return "INF";
-	default:
-		break;
-	}
-	return "DBG";
-}
-
 int16_t logEntryCreate(const int severity, const char *filename, const char *function, const int line, const int16_t code, const char *msg, ...)
 {
 #if CONFIG_PROC_HAVE_DRIVERS
@@ -133,12 +120,16 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 	va_list args;
 
+#if CONFIG_PROC_HAVE_CHRONO
 	// get time
 	system_clock::time_point t = system_clock::now();
 	milliseconds durDiffMs = duration_cast<milliseconds>(t - tOld);
 
 	// build day
 	time_t tTt = system_clock::to_time_t(t);
+#else
+	time_t tTt = getRtcTime(); // from time.hpp...
+#endif
 	char timeBuf[32];
 	tm tTm {};
 #ifdef _WIN32
@@ -149,6 +140,7 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 	strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d", &tTm);
 
 	// build time
+#if CONFIG_PROC_HAVE_CHRONO
 	system_clock::duration dur = t.time_since_epoch();
 
 	hours durDays = duration_cast<hours>(dur) / 24;
@@ -179,6 +171,7 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 		diffMaxed = true;
 	}
+#endif
 
 	// merge
 	pStart += snprintf(pStart, pEnd - pStart,
