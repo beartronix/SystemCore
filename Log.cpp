@@ -44,8 +44,6 @@ using namespace std;
 #if CONFIG_PROC_HAVE_CHRONO
 #include <chrono>
 using namespace chrono;
-#else
-#include "time.hpp" // ??? my own implementation... otherwise need to include "stm32h5xx.h" or similar sh*t
 #endif
 
 #include "Processing.h"
@@ -127,8 +125,6 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 
 	// build day
 	time_t tTt = system_clock::to_time_t(t);
-#else
-	time_t tTt = getRtcTime(); // from time.hpp...
 #endif
 	char timeBuf[32];
 	tm tTm {};
