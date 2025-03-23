@@ -4,6 +4,10 @@
 *-bak
 *.bck
 
+# python
+.venv
+__pycache__
+
 # 3D print
 *.obj
 *.stl
