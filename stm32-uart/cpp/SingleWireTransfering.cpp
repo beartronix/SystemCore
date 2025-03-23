@@ -4,6 +4,7 @@
 
   Author(s):
       - Johannes Natter, office@dsp-crowd.com
+      - Stefan Egger, office@beartronics.at
 
   File created on 30.11.2019
 
@@ -29,28 +30,39 @@
 */
 
 #include <string.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "SingleWireTransfering.h"
 
 using namespace std;
 
-extern UART_HandleTypeDef huart1;
+ extern UART_HandleTypeDef huart1;
 
 uint8_t SingleWireTransfering::buffRx[2];
 uint8_t SingleWireTransfering::buffRxIdxIrq = 0; // used by IRQ only
 uint8_t SingleWireTransfering::buffRxIdxWritten = 0; // set by IRQ, cleared by main
 uint8_t SingleWireTransfering::buffTxPending = 0;
 
-enum SingleWireState
-{
-	FlowControlByteRcv = 0,
-	ContentIdOutSend,
-	ContentIdOutSendWait,
-	DataSend,
-	DataSendDoneWait,
-	ContentIdInRcv,
-	CmdRcv
-};
+#define TX_ONLY 1
+
+
+#define dForEach_ProcState(gen) \
+		gen(StFlowControlByteRcv) \
+		gen(StContentIdOutSend) \
+		gen(StContentIdOutSendWait) \
+		gen(StDataSend) \
+		gen(StDataSendDoneWait) \
+		gen(StContentIdInRcv) \
+		gen(StCmdRcv) \
+
+#define dGenProcStateEnum(s) s,
+dProcessStateEnum(ProcState);
+
+#if 1
+#define dGenProcStateString(s) #s,
+dProcessStateStr(ProcState);
+#endif
 
 enum SwtFlowControlBytes
 {
@@ -73,8 +85,8 @@ enum SwtContentIdInBytes
 
 SingleWireTransfering::SingleWireTransfering()
 	: Processing("SingleWireTransfering")
-	, state(FlowControlByteRcv)
 {
+	mState = StFlowControlByteRcv;
 }
 
 SingleWireTransfering::~SingleWireTransfering()
@@ -86,6 +98,8 @@ Success SingleWireTransfering::initialize()
 {
 	HAL_UART_Receive_IT(&huart1, SingleWireTransfering::buffRx, 1);
 
+	// entryLogCreateSet(logEntryCreated);
+
 	return Positive;
 }
 
@@ -93,92 +107,100 @@ Success SingleWireTransfering::process()
 {
 	uint8_t data;
 
-	switch (state)
+	switch (mState)
 	{
-	case FlowControlByteRcv:
-
+	case StFlowControlByteRcv:
+	{
+#if !TX_ONLY
 		if (!byteReceived(&data))
 			return Pending;
-
 		if (data == FlowMasterSlave)
-			state = ContentIdInRcv;
+			mState = StContentIdInRcv;
 
 		if (data == FlowSlaveMaster)
-			state = ContentIdOutSend;
+			mState = StContentIdOutSend;
+#else
 
+		mState = StContentIdOutSend;
+#endif
 		break;
-	case ContentIdOutSend:
+	}
+	case StContentIdOutSend:
 
 		if (pEnv->buffValid & dBuffValidOutCmd)
 		{
-			validIdTx = dBuffValidOutCmd;
-			pDataTx = pEnv->buffOutCmd;
-			contentTx = ContentOutCmd;
+			mValidIdTx = dBuffValidOutCmd;
+			mpDataTx = pEnv->buffOutCmd;
+			mContentTx = ContentOutCmd;
 		}
 		else if (pEnv->buffValid & dBuffValidOutLog)
 		{
-			validIdTx = dBuffValidOutLog;
-			pDataTx = pEnv->buffOutLog;
-			contentTx = ContentOutLog;
+			mValidIdTx = dBuffValidOutLog;
+			mpDataTx = pEnv->buffOutLog;
+			mContentTx = ContentOutLog;
 		}
 		else if (pEnv->buffValid & dBuffValidOutProc)
 		{
-			validIdTx = dBuffValidOutProc;
-			pDataTx = pEnv->buffOutProc;
-			contentTx = ContentOutProc;
+			mValidIdTx = dBuffValidOutProc;
+			mpDataTx = pEnv->buffOutProc;
+			mContentTx = ContentOutProc;
 		}
 		else
-			contentTx = ContentOutNone;
+			mContentTx = ContentOutNone;
 
-		SingleWireTransfering::buffTxPending = 1;
-		HAL_UART_Transmit_IT(&huart1, &contentTx, 1);
+		// SingleWireTransfering::buffTxPending = 1;
+		fwrite(&mContentTx, 1, 1, mpFile);// HAL_UART_Transmit_IT(&huart1, &mContentTx, 1);
 
-		state = ContentIdOutSendWait;
+		mState = StContentIdOutSendWait;
 
 		break;
-	case ContentIdOutSendWait:
+	case StContentIdOutSendWait:
 
 		if (SingleWireTransfering::buffTxPending)
 			return Pending;
 
-		if (contentTx == ContentOutNone)
-			state = FlowControlByteRcv;
+#if !TX_ONLY
+		if (mContentTx == ContentOutNone)
+			mState = StFlowControlByteRcv;
 		else
-			state = DataSend;
+#endif
+			mState = StDataSend;
 
 		break;
-	case DataSend:
+	case StDataSend:
 
-		SingleWireTransfering::buffTxPending = 1;
-		HAL_UART_Transmit_IT(&huart1, (uint8_t *)pDataTx, strlen(pDataTx) + 1);
+		// SingleWireTransfering::buffTxPending = 1;
+		fwrite((uint8_t*)&mpDataTx, 1, 1, mpFile);
+		// HAL_UART_Transmit_IT(&huart1, (uint8_t *)mpDataTx, strlen(mpDataTx) + 1);
 
-		state = DataSendDoneWait;
+		mState = StDataSendDoneWait;
 
 		break;
-	case DataSendDoneWait:
+	case StDataSendDoneWait:
 
 		if (SingleWireTransfering::buffTxPending)
 			return Pending;
 
-		pEnv->buffValid &= ~validIdTx;
+		pEnv->buffValid &= ~mValidIdTx;
 
-		state = FlowControlByteRcv;
+		mState = StFlowControlByteRcv;
 
 		break;
-	case ContentIdInRcv:
+#if !TX_ONLY
+	case StContentIdInRcv:
 
 		if (!byteReceived(&data))
 			return Pending;
 
-		idxRx = 0;
+		mIdxRx = 0;
 
 		if (data == ContentInCmd)
-			state = CmdRcv;
+			mState = StCmdRcv;
 		else
-			state = FlowControlByteRcv;
+			mState = StFlowControlByteRcv;
 
 		break;
-	case CmdRcv:
+	case StCmdRcv:
 
 		if (!byteReceived(&data))
 			return Pending;
@@ -186,23 +208,24 @@ Success SingleWireTransfering::process()
 		if (pEnv->buffValid & dBuffValidInCmd)
 		{
 			// Consumer not finished. Discard command
-			state = FlowControlByteRcv;
+			mState = StFlowControlByteRcv;
 			return Pending;
 		}
 
-		if (idxRx == sizeof(pEnv->buffInCmd) - 1)
+		if (mIdxRx == sizeof(pEnv->buffInCmd) - 1)
 			data = 0;
 
-		pEnv->buffInCmd[idxRx] = data;
-		++idxRx;
+		pEnv->buffInCmd[mIdxRx] = data;
+		++mIdxRx;
 
 		if (!data)
 		{
 			pEnv->buffValid |= dBuffValidInCmd;
-			state = FlowControlByteRcv;
+			mState = StFlowControlByteRcv;
 		}
 
 		break;
+#endif
 	default:
 		break;
 	}
@@ -231,26 +254,26 @@ void SingleWireTransfering::processInfo(char *pBuf, char *pBufEnd)
 	(void)pBufEnd;
 }
 
-/* static functions */
-extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	SingleWireTransfering::buffRxIdxWritten = SingleWireTransfering::buffRxIdxIrq + 1;
-	SingleWireTransfering::buffRxIdxIrq ^= 1;
-	HAL_UART_Receive_IT(&huart1, &SingleWireTransfering::buffRx[SingleWireTransfering::buffRxIdxIrq], 1);
+// /* static functions */
+// extern "C" void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+// {
+// 	SingleWireTransfering::buffRxIdxWritten = SingleWireTransfering::buffRxIdxIrq + 1;
+// 	SingleWireTransfering::buffRxIdxIrq ^= 1;
+// 	HAL_UART_Receive_IT(&huart1, &SingleWireTransfering::buffRx[SingleWireTransfering::buffRxIdxIrq], 1);
 
-	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedSet);
-	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedClear);
-}
+// 	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedSet);
+// 	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedClear);
+// }
 
-extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-	(void)huart;
+// extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+// {
+// 	(void)huart;
 
-	SingleWireTransfering::buffTxPending = 0;
+// 	SingleWireTransfering::buffTxPending = 0;
 
-	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedSet);
-	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedClear);
+// 	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedSet);
+// 	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedClear);
 
-	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedSet);
-	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedClear);
-}
+// 	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedSet);
+// 	//HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, dLedClear);
+// }

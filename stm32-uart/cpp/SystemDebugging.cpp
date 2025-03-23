@@ -31,41 +31,33 @@
 #include <string.h>
 
 #include "SystemDebugging.h"
-#include "fwVersion.h"
 #include "env.h"
+#include "util.h"
 
-enum CmdState
-{
-	CmdRcvdWait = 0,
-	CmdInterpret,
-	CmdSendStart,
-	CmdSentWait,
-};
+#define dForEach_ProcState(gen) \
+	gen(StCmdRcvdWait) \
+	gen(StCmdInterpret) \
+	gen(StCmdSendStart) \
+	gen(StCmdSentWait) \
+
+#define dGenProcStateEnum(s) s,
+dProcessStateEnum(ProcState);
 
 #define CMD(x)		(!strncmp(pEnv->buffInCmd, x, strlen(x)))
 
 #define dNumCmds		32
 Command commands[dNumCmds] = {};
 
-extern TIM_HandleTypeDef htim1;
-
 using namespace std;
 
-SystemDebugging::SystemDebugging()
+SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 	: Processing("SystemDebugging")
-	, mpTreeRoot(NULL)
-	, state(CmdRcvdWait)
+	, mpTreeRoot(pTreeRoot)
 {
+	mState = StCmdRcvdWait;
+
 }
 
-SystemDebugging::~SystemDebugging()
-{
-}
-
-void SystemDebugging::treeRootSet(Processing *pTreeRoot)
-{
-	mpTreeRoot = pTreeRoot;
-}
 
 bool SystemDebugging::cmdReg(const char *pId, CmdFunc pFunc)
 {
@@ -100,18 +92,30 @@ Command *SystemDebugging::freeCmdStructGet()
 	return NULL;
 }
 
+
+
 /* member functions */
 Success SystemDebugging::initialize()
 {
+	pEnv = new dNoThrow Environment;
+
 	if (!mpTreeRoot)
 		return procErrLog(0, -1, "tree root not set");
+
+	entryLogCreateSet(SystemDebugging::entryLogCreate);
 
 	return Positive;
 }
 
 Success SystemDebugging::process()
 {
+	uint32_t diffMs = millis() - mStartMs;
 	commandInterpret();
+
+	if (diffMs < 1000)
+		return Pending;
+
+	mStartMs = millis();
 	procTreeSend();
 
 	return Pending;
@@ -123,23 +127,23 @@ void SystemDebugging::commandInterpret()
 	char *pBufEnd = pBuf + sizeof(pEnv->buffOutCmd);
 	Command *pCmd = commands;
 
-	switch (state)
+	switch (mState)
 	{
-	case CmdRcvdWait: // fetch
+	case StCmdRcvdWait: // fetch
 
 		if (!(pEnv->buffValid & dBuffValidInCmd))
 			break;
 
-		state = CmdInterpret;
+		mState = StCmdInterpret;
 
 		break;
-	case CmdInterpret: // interpret/decode and execute
+	case StCmdInterpret: // interpret/decode and execute
 
 		if (CMD("aaaaa"))
 		{
 			pEnv->debugMode ^= 1;
 			dInfo("Debug mode %d", pEnv->debugMode);
-			state = CmdSendStart;
+			mState = StCmdSendStart;
 			break;
 		}
 
@@ -147,7 +151,7 @@ void SystemDebugging::commandInterpret()
 		{
 			// don't answer
 			pEnv->buffValid &= ~dBuffValidInCmd;
-			state = CmdRcvdWait;
+			mState = StCmdRcvdWait;
 
 			break;
 		}
@@ -174,7 +178,7 @@ void SystemDebugging::commandInterpret()
 			if (!*pEnv->buffOutCmd)
 				dInfo("Done");
 
-			state = CmdSendStart;
+			mState = StCmdSendStart;
 			break;
 		}
 
@@ -182,22 +186,22 @@ void SystemDebugging::commandInterpret()
 			break;
 
 		dInfo("Unknown command");
-		state = CmdSendStart;
+		mState = StCmdSendStart;
 
 		break;
-	case CmdSendStart: // write back
+	case StCmdSendStart: // write back
 
 		pEnv->buffValid |= dBuffValidOutCmd;
-		state = CmdSentWait;
+		mState = StCmdSentWait;
 
 		break;
-	case CmdSentWait:
+	case StCmdSentWait:
 
 		if (pEnv->buffValid & dBuffValidOutCmd)
 			break;
 
 		pEnv->buffValid &= ~dBuffValidInCmd;
-		state = CmdRcvdWait;
+		mState = StCmdRcvdWait;
 
 		break;
 	default:
@@ -210,22 +214,55 @@ void SystemDebugging::procTreeSend()
 	if (!pEnv->debugMode)
 		return; // minimize CPU load in production
 
-	if (pEnv->buffValid & dBuffValidOutProc)
-		return;
-
 	mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
 
-	pEnv->buffValid |= dBuffValidOutProc;
+	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n", pEnv->buffOutProc);
 }
 
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
 {
-	dInfo("Firmware\t\t%s\n", dFwVersion);
 #if 0
+	dInfo("Firmware\t\t%s\n", dFwVersion);
 	dInfo("En High sens\t%d\n", HAL_GPIO_ReadPin(HighSensEn_GPIO_Port, HighSensEn_Pin));
 	dInfo("En RX\t\t%d\n", HAL_GPIO_ReadPin(RxEn_GPIO_Port, RxEn_Pin));
 #endif
 }
 
-/* static functions */
+int SystemDebugging::sLevelLog = 3;
+void SystemDebugging::levelLogSet(int lvl)
+{
+	sLevelLog = lvl;
+}
 
+/* static functions */
+void SystemDebugging::entryLogCreate(
+		const int severity,
+		const char *filename,
+		const char *function,
+		const int line,
+		const int16_t code,
+		const char *msg,
+		const size_t len)
+{
+	const char* red = "\033[0;31m";
+	const char* yellow = "\033[0;33m";
+	const char* reset = "\033[37m";
+#if CONFIG_PROC_HAVE_DRIVERS
+	Guard lock(mtxLogEntries);
+#endif
+	(void)filename;
+	(void)function;
+	(void)line;
+	(void)code;
+
+	if (severity > sLevelLog)
+		return;
+
+	if (severity == 1)
+		fprintf(stderr, LOG_PREFIX "%s%s%s\r\n", red, msg, reset);
+	else
+	if (severity == 2)
+		fprintf(stderr, LOG_PREFIX "%s%s%s\r\n", yellow, msg, reset);
+	else
+		fprintf(stdout, LOG_PREFIX "%s\r\n", msg);
+}

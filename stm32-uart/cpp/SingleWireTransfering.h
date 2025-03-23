@@ -42,7 +42,7 @@ public:
 
 	static SingleWireTransfering *create()
 	{
-		return new (std::nothrow) SingleWireTransfering;
+		return new dNoThrow SingleWireTransfering;
 	}
 
 	static uint8_t buffRx[2];
@@ -57,11 +57,8 @@ protected:
 
 private:
 
-	SingleWireTransfering(const SingleWireTransfering &) : Processing("") {}
-	SingleWireTransfering &operator=(const SingleWireTransfering &)
-	{
-		return *this;
-	}
+	SingleWireTransfering(const SingleWireTransfering &) = delete;
+	SingleWireTransfering &operator=(const SingleWireTransfering &) = delete;
 
 	/*
 	 * Naming of functions:  objectVerb()
@@ -76,11 +73,12 @@ private:
 	uint8_t byteReceived(uint8_t *pData);
 
 	/* member variables */
-	uint8_t state;
-	uint8_t contentTx;
-	uint8_t validIdTx;
-	char *pDataTx;
-	uint8_t idxRx;
+	uint8_t mContentTx;
+	uint8_t mValidIdTx;
+	char* mpDataTx;
+	uint8_t mIdxRx;
+
+	FILE* mpFile;
 
 	/* static functions */
 

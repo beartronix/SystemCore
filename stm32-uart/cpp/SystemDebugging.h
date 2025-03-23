@@ -28,8 +28,7 @@
   SOFTWARE.
 */
 
-#ifndef SYSTEM_DEBUGGING_H
-#define SYSTEM_DEBUGGING_H
+#pragma once
 
 #include "Processing.h"
 
@@ -46,19 +45,20 @@ class SystemDebugging : public Processing
 
 public:
 
-	static SystemDebugging *create()
+	static SystemDebugging *create(Processing *pTreeRoot)
 	{
-		return new (std::nothrow) SystemDebugging;
+		return new dNoThrow SystemDebugging(pTreeRoot);
 	}
 
 	void treeRootSet(Processing *pTreeRoot);
 
 	static bool cmdReg(const char *pId, CmdFunc pFunc);
 
+	static void levelLogSet(int lvl);
 protected:
 
-	SystemDebugging();
-	virtual ~SystemDebugging();
+	SystemDebugging(Processing *pTreeRoot);
+	virtual ~SystemDebugging(){};
 
 private:
 
@@ -82,16 +82,26 @@ private:
 
 	/* member variables */
 	Processing *mpTreeRoot;
-	uint8_t state;
+
+	uint32_t mStartMs;
 
 	/* static functions */
 	static Command *freeCmdStructGet();
 
+	static void entryLogCreate(
+		const int severity,
+		const char *filename,
+		const char *function,
+		const int line,
+		const int16_t code,
+		const char *msg,
+		const size_t len);
+
+
 	/* static variables */
+	static int sLevelLog;
 
 	/* constants */
 
 };
-
-#endif
 
