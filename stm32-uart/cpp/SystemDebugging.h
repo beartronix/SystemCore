@@ -62,11 +62,8 @@ protected:
 
 private:
 
-	SystemDebugging(const SystemDebugging &) : Processing("") {}
-	SystemDebugging &operator=(const SystemDebugging &)
-	{
-		return *this;
-	}
+	SystemDebugging(const SystemDebugging &) = delete;
+	SystemDebugging &operator=(const SystemDebugging &) = delete;
 
 	/*
 	 * Naming of functions:  objectVerb()

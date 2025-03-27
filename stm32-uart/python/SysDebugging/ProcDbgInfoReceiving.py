@@ -16,7 +16,7 @@ pathComPort = '/dev/ttyUSB0'
 if len(args) > 1:
 	pathComPort = args[1]
 
-comPort = serial.Serial(pathComPort, 38400, timeout=0.4)
+comPort = serial.Serial(pathComPort, 38400, timeout=1)
 comPort.reset_input_buffer()
 
 
@@ -80,14 +80,16 @@ while True:
 		msgId = comPort.read(1).decode()
 		data = b''
 		if msgId == ID_LOG:
-			data = b'\033[37m' + comPort.read_until(b'\r\n')
+			data = b'\033[37m' + comPort.read_until(b'\n')
 		elif msgId == ID_TREE:
 			data = b'\033\143' + comPort.read_until(b'\r\n\r\n')
 		else:
 			# print("Got CRAP")
 			comPort.reset_input_buffer()
 
+
 		if data:
+			# print(data)
 			servers[msgId].send(data)
 		# print(data)
 	except KeyboardInterrupt as k:

@@ -30,7 +30,7 @@
 
 #include <string.h>
 
-#include "SystemDebugging.h"
+#include "./SystemDebugging.h"
 #include "env.h"
 #include "util.h"
 
@@ -216,7 +216,7 @@ void SystemDebugging::procTreeSend()
 
 	mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
 
-	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n", pEnv->buffOutProc);
+	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n\r\n", pEnv->buffOutProc);
 }
 
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
