@@ -223,9 +223,76 @@ protected:
 private:
 	// This area is used by the abstract process
 
-	Processing() = delete;
-	Processing(const Processing &) = delete;
-	Processing &operator=(const Processing &) = delete;
+	Processing()
+		: mState(0), mStateOld(0)
+		, mLevelTree(0), mLevelDriver(0)
+		, mName(NULL)
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mChildList()
+#else
+		, mpChildList(NULL)
+#endif
+#if CONFIG_PROC_HAVE_DRIVERS
+		, mChildListMtx(), mpDriver(NULL)
+		, mpConfigDriver(NULL)
+#endif
+		, mSuccess(Pending), mNumChildren(0)
+		, mStateAbstract(0), mStatParent(0)
+		, mDriver(DrivenByExternalDriver)
+#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mNumChildrenMax(CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT)
+#endif
+		, mStatDrv(0)
+	{}
+	Processing(const Processing &)
+		: mState(0), mStateOld(0)
+		, mLevelTree(0), mLevelDriver(0)
+		, mName(NULL)
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mChildList()
+#else
+		, mpChildList(NULL)
+#endif
+#if CONFIG_PROC_HAVE_DRIVERS
+		, mChildListMtx(), mpDriver(NULL)
+		, mpConfigDriver(NULL)
+#endif
+		, mSuccess(Pending), mNumChildren(0)
+		, mStateAbstract(0), mStatParent(0)
+		, mDriver(DrivenByExternalDriver)
+#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mNumChildrenMax(CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT)
+#endif
+		, mStatDrv(0)
+	{}
+	Processing &operator=(const Processing &)
+	{
+		mState = 0;
+		mStateOld = 0;
+		mLevelTree = 0;
+		mLevelDriver = 0;
+		mName = NULL;
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+		mChildList.clear();
+#else
+		mpChildList = NULL;
+#endif
+#if CONFIG_PROC_HAVE_DRIVERS
+		mpDriver = NULL;
+		mpConfigDriver = NULL;
+#endif
+		mSuccess = Pending;
+		mNumChildren = 0;
+		mStateAbstract = 0;
+		mStatParent = 0;
+		mDriver = DrivenByExternalDriver;
+#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+		mNumChildrenMax = CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT;
+#endif
+		mStatDrv = 0;
+
+		return *this;
+	}
 
 	/* member functions */
 
