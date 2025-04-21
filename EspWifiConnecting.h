@@ -62,8 +62,16 @@ protected:
 private:
 
 	EspWifiConnecting();
-	EspWifiConnecting(const EspWifiConnecting &) = delete;
-	EspWifiConnecting &operator=(const EspWifiConnecting &) = delete;
+	EspWifiConnecting(const EspWifiConnecting &)
+		: Processing("")
+		, mStartMs(0), mpNetInterface(NULL), mpHostname(""), mpSsid(NULL)
+		, mpPassword(NULL), mWifiConnected(false), mRssi(0)
+	{}
+	EspWifiConnecting &operator=(const EspWifiConnecting &)
+		: Processing("")
+		, mStartMs(0), mpNetInterface(NULL), mpHostname(""), mpSsid(NULL)
+		, mpPassword(NULL), mWifiConnected(false), mRssi(0)
+	{ return *this; }
 
 	/*
 	 * Naming of functions:  objectVerb()
