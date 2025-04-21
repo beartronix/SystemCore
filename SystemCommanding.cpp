@@ -34,7 +34,6 @@
 #include <chrono>
 
 #include "SystemCommanding.h"
-#include "TextBox.h"
 
 // --------------------
 
@@ -116,36 +115,36 @@ using namespace chrono;
 
 // --------------------
 
-typedef uint16_t KeySysUser;
+typedef uint16_t KeyUser;
 
-const KeySysUser keySysBackspace    = 0x7F;
-const KeySysUser keySysBackspaceWin = 0x08;
-const KeySysUser keySysEnter        = 0x0D;
-const KeySysUser keySysEsc          = 0x1B;
-const KeySysUser keySysCtrlC        = 0x03;
-const KeySysUser keySysCtrlD        = 0x04;
-const KeySysUser keySysTab          = 0x09;
+const KeyUser keyBackspace    = 0x7F;
+const KeyUser keyBackspaceWin = 0x08;
+const KeyUser keyEnter        = 0x0D;
+const KeyUser keyEsc          = 0x1B;
+const KeyUser keyCtrlC        = 0x03;
+const KeyUser keyCtrlD        = 0x04;
+const KeyUser keyTab          = 0x09;
 
-enum KeySysExtensions
+enum KeyExtensions
 {
-	keySysUp = 1000,
-	keySysDown,
-	keySysLeft,
-	keySysRight,
-	keySysHome,
-	keySysInsert,
-	keySysDelete,
-	keySysEnd,
-	keySysPgUp,
-	keySysPgDn,
-	keySysF0,	keySysF1,	keySysF2,	keySysF3,
-	keySysF4,	keySysF5,	keySysF6,	keySysF7,
-	keySysF8,	keySysF9,	keySysF10,	keySysF11,
-	keySysF12,	keySysF13,	keySysF14,	keySysF15,
-	keySysF16,	keySysF17,	keySysF18,	keySysF19,
-	keySysF20,
-	keySysShiftTab,
-	keySysJumpLeft, keySysJumpRight
+	keyUp = 1000,
+	keyDown,
+	keyLeft,
+	keyRight,
+	keyHome,
+	keyInsert,
+	keyDelete,
+	keyEnd,
+	keyPgUp,
+	keyPgDn,
+	keyF0,	keyF1,	keyF2,	keyF3,
+	keyF4,	keyF5,	keyF6,	keyF7,
+	keyF8,	keyF9,	keyF10,	keyF11,
+	keyF12,	keyF13,	keyF14,	keyF15,
+	keyF16,	keyF17,	keyF18,	keyF19,
+	keyF20,
+	keyShiftTab,
+	keyJumpLeft, keyJumpRight
 };
 
 // --------------------
@@ -413,7 +412,7 @@ void SystemCommanding::dataReceive()
 
 	//procInfLog("bytes received: %d", lenDone);
 
-	if (lenDone == 1 && buf[0] == keySysEsc)
+	if (lenDone == 1 && buf[0] == keyEsc)
 		return;
 
 	bool changed = false;
@@ -437,7 +436,7 @@ void SystemCommanding::dataReceive()
 		else
 			procInfLog("key received: %u, 0x%02X", key, key);
 #endif
-		if (key == keySysTab)
+		if (key == keyTab)
 		{
 			tabProcess();
 			continue;
@@ -445,7 +444,7 @@ void SystemCommanding::dataReceive()
 
 		mLastKeyWasTab = false;
 
-		if (key == keySysEnter)
+		if (key == keyEnter)
 		{
 			lineAck();
 			continue;
@@ -723,13 +722,13 @@ void SystemCommanding::historyInsert()
 
 bool SystemCommanding::historyNavigate(uint16_t key)
 {
-	if (key != keySysUp && key != keySysDown)
+	if (key != keyUp && key != keyDown)
 		return false;
 
-	if (key == keySysDown && mIdxLineView == mIdxLineEdit)
+	if (key == keyDown && mIdxLineView == mIdxLineEdit)
 		return false;
 
-	int16_t direction = key == keySysDown ? 1 : -1;
+	int16_t direction = key == keyDown ? 1 : -1;
 	int16_t mIdxLineViewNew = mIdxLineView + direction;
 
 	if (mIdxLineViewNew < 0)
@@ -738,7 +737,7 @@ bool SystemCommanding::historyNavigate(uint16_t key)
 	if (mIdxLineViewNew >= cNumCmdInBuffer)
 		mIdxLineViewNew = 0;
 
-	if (key == keySysUp && mIdxLineViewNew == mIdxLineEdit)
+	if (key == keyUp && mIdxLineViewNew == mIdxLineEdit)
 		return false;
 
 	if (!mCmdInBuf[mIdxLineViewNew][0])
@@ -774,19 +773,19 @@ bool SystemCommanding::bufferEdit(uint16_t key)
 
 	// Navigation
 
-	if (key == keySysHome)
+	if (key == keyHome)
 	{
 		mIdxColCursor = 0;
 		return true;
 	}
 
-	if (key == keySysEnd)
+	if (key == keyEnd)
 	{
 		mIdxColCursor = mIdxColLineEnd;
 		return true;
 	}
 
-	if (key == keySysLeft)
+	if (key == keyLeft)
 	{
 		if (!mIdxColCursor)
 			return false;
@@ -795,7 +794,7 @@ bool SystemCommanding::bufferEdit(uint16_t key)
 		return true;
 	}
 
-	if (key == keySysRight)
+	if (key == keyRight)
 	{
 		if (mIdxColCursor >= mIdxColLineEnd)
 			return false;
@@ -826,7 +825,7 @@ bool SystemCommanding::bufferEdit(uint16_t key)
 bool SystemCommanding::chRemove(uint16_t key)
 {
 	char *pCursor = &mCmdInBuf[mIdxLineEdit][mIdxColCursor];
-	bool isBackspace = key == keySysBackspace || key == keySysBackspaceWin;
+	bool isBackspace = key == keyBackspace || key == keyBackspaceWin;
 	char *pRemove = NULL;
 
 	if (isBackspace && mIdxColCursor)
@@ -837,7 +836,7 @@ bool SystemCommanding::chRemove(uint16_t key)
 		pRemove = pCursor;
 	}
 
-	if (key == keySysDelete && *pCursor)
+	if (key == keyDelete && *pCursor)
 		pRemove = pCursor;
 
 	if (!pRemove)
@@ -893,10 +892,10 @@ bool SystemCommanding::chInsert(uint16_t key)
 
 bool SystemCommanding::cursorJump(uint16_t key)
 {
-	if (key != keySysJumpLeft && key != keySysJumpRight)
+	if (key != keyJumpLeft && key != keyJumpRight)
 		return false;
 
-	int direction = key == keySysJumpRight ? 1 : -1;
+	int direction = key == keyJumpRight ? 1 : -1;
 	bool statePrev = (direction + 1) >> 1;
 	bool stateCursor = !statePrev;
 	uint16_t idxStop = statePrev ? mIdxColLineEnd : 0;
@@ -1159,14 +1158,14 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 			break;
 		}
 
-		if (key == keySysEsc)
+		if (key == keyEsc)
 		{
 			mStateKey = StKeyEscMain;
 			break;
 		}
 
 		// user disconnect
-		if (key == keySysCtrlC || key == keySysCtrlD)
+		if (key == keyCtrlC || key == keyCtrlD)
 			return -1;
 
 		*pKeyOut = key;
@@ -1187,15 +1186,15 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		break;
 	case StKeyEscBracket:
 
-		dByteCheckKeyCommit('A', keySysUp);
-		dByteCheckKeyCommit('B', keySysDown);
-		dByteCheckKeyCommit('C', keySysRight);
-		dByteCheckKeyCommit('D', keySysLeft);
+		dByteCheckKeyCommit('A', keyUp);
+		dByteCheckKeyCommit('B', keyDown);
+		dByteCheckKeyCommit('C', keyRight);
+		dByteCheckKeyCommit('D', keyLeft);
 
-		dByteCheckKeyCommit('F', keySysEnd);
-		dByteCheckKeyCommit('H', keySysHome);
+		dByteCheckKeyCommit('F', keyEnd);
+		dByteCheckKeyCommit('H', keyHome);
 
-		dByteCheckKeyCommit('Z', keySysShiftTab);
+		dByteCheckKeyCommit('Z', keyShiftTab);
 
 		if (key == '1')
 		{
@@ -1219,7 +1218,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysEnd;
+			*pKeyOut = keyEnd;
 			return Positive;
 		}
 
@@ -1227,7 +1226,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysPgUp;
+			*pKeyOut = keyPgUp;
 			return Positive;
 		}
 
@@ -1235,7 +1234,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysPgDn;
+			*pKeyOut = keyPgDn;
 			return Positive;
 		}
 
@@ -1243,7 +1242,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysHome;
+			*pKeyOut = keyHome;
 			return Positive;
 		}
 
@@ -1253,7 +1252,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		break;
 	case StKeyEsc1:
 
-		dByteCheckKeyCommit('~', keySysHome);
+		dByteCheckKeyCommit('~', keyHome);
 
 		if (key == ';')
 		{
@@ -1265,7 +1264,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysF0 + key;
+			*pKeyOut = keyF0 + key;
 			return Positive;
 		}
 
@@ -1273,7 +1272,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysF6 + (key - 7);
+			*pKeyOut = keyF6 + (key - 7);
 			return Positive;
 		}
 
@@ -1281,7 +1280,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyMain;
 
-			*pKeyOut = keySysF1 + (key - 'P');
+			*pKeyOut = keyF1 + (key - 'P');
 			return Positive;
 		}
 
@@ -1307,7 +1306,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyMain;
 
-			*pKeyOut = keySysJumpRight;
+			*pKeyOut = keyJumpRight;
 			return Positive;
 		}
 
@@ -1315,7 +1314,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyMain;
 
-			*pKeyOut = keySysJumpLeft;
+			*pKeyOut = keyJumpLeft;
 			return Positive;
 		}
 
@@ -1325,13 +1324,13 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		break;
 	case StKeyEsc2:
 
-		dByteCheckKeyCommit('~', keySysInsert);
+		dByteCheckKeyCommit('~', keyInsert);
 
 		if (key >= '0' && key <= '1')
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysF9 + key;
+			*pKeyOut = keyF9 + key;
 			return Positive;
 		}
 
@@ -1339,7 +1338,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysF11 + (key - 3);
+			*pKeyOut = keyF11 + (key - 3);
 			return Positive;
 		}
 
@@ -1347,7 +1346,7 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysF15 + (key - 8);
+			*pKeyOut = keyF15 + (key - 8);
 			return Positive;
 		}
 
@@ -1357,13 +1356,13 @@ Success SystemCommanding::ansiFilter(uint8_t ch, uint16_t *pKeyOut)
 		break;
 	case StKeyEsc3:
 
-		dByteCheckKeyCommit('~', keySysDelete);
+		dByteCheckKeyCommit('~', keyDelete);
 
 		if (key >= '1' && key <= '4')
 		{
 			mStateKey = StKeyEscTilde;
 
-			*pKeyOut = keySysF17 + (key - 1);
+			*pKeyOut = keyF17 + (key - 1);
 			return Positive;
 		}
 
