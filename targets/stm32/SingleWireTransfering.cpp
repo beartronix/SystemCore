@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "SingleWireTransfering.h"
+#include "SingleWire.h"
 
 #define dForEach_ProcState(gen) \
 		gen(StStart) \
@@ -59,31 +60,6 @@ static uint8_t bufTxPending = 0; // set by main, cleared by IRQ
 
 uint8_t SingleWireTransfering::idStarted = 0;
 
-enum SwtFlowDirection
-{
-	FlowCtrlToTarget = 0x0B,
-	FlowTargetToCtrl = 0x0C
-};
-
-enum SwtContentIdIn
-{
-	ContentInCmd = 0x1A,
-};
-
-enum SwtContentId
-{
-	ContentNone = 0x15,
-	ContentProc = 0x11,
-	ContentLog,
-	ContentCmd,
-};
-
-enum SwtContentEnd
-{
-	ContentCut = 0x0F,
-	ContentEnd = 0x17,
-};
-
 SingleWireTransfering::SingleWireTransfering()
 	: Processing("SingleWireTransfering")
 	, mModeDebug(0)
@@ -91,7 +67,7 @@ SingleWireTransfering::SingleWireTransfering()
 	, mValidBuf(0)
 	, mpSend(NULL)
 	, mpUser(NULL)
-	, mContentTx(ContentNone)
+	, mContentTx(ContentTaToScNone)
 	, mValidIdTx(0)
 	, mpDataTx(NULL)
 	, mIdxRx(0)
@@ -154,13 +130,13 @@ Success SingleWireTransfering::process()
 		if (!byteReceived(&data))
 			break;
 
-		if (data == FlowCtrlToTarget)
+		if (data == FlowSchedToTarget)
 			mState = StContentIdInRcvdWait;
 
 		if (!mModeDebug)
 			break;
 
-		if (data == FlowTargetToCtrl)
+		if (data == FlowTargetToSched)
 			mState = StContentIdOutSend;
 
 		break;
@@ -169,21 +145,21 @@ Success SingleWireTransfering::process()
 		if (mValidBuf & cBufValidOutCmd) // highest prio
 		{
 			mValidIdTx = cBufValidOutCmd;
-			mContentTx = ContentCmd;
+			mContentTx = ContentTaToScCmd;
 			mpDataTx = mBufOutCmd;
 			mLenSend = sizeof(mBufOutCmd);
 		}
 		else if (mValidBuf & cBufValidOutLog)
 		{
 			mValidIdTx = cBufValidOutLog;
-			mContentTx = ContentLog;
+			mContentTx = ContentTaToScLog;
 			mpDataTx = mBufOutLog;
 			mLenSend = sizeof(mBufOutLog);
 		}
 		else if (mValidBuf & cBufValidOutProc) // lowest prio
 		{
 			mValidIdTx = cBufValidOutProc;
-			mContentTx = ContentProc;
+			mContentTx = ContentTaToScProc;
 			mpDataTx = mBufOutProc;
 			mLenSend = sizeof(mBufOutProc);
 		}
@@ -191,7 +167,7 @@ Success SingleWireTransfering::process()
 			mLenSend = 0;
 
 		if (mLenSend < 2)
-			mContentTx = ContentNone;
+			mContentTx = ContentTaToScNone;
 
 		bufTxPending = 1;
 		mpSend(&mContentTx, sizeof(mContentTx), mpUser);
@@ -204,7 +180,7 @@ Success SingleWireTransfering::process()
 		if (bufTxPending)
 			break;
 
-		if (mContentTx == ContentNone)
+		if (mContentTx == ContentTaToScNone)
 		{
 			mState = StFlowControlRcvdWait;
 			break;
@@ -248,7 +224,7 @@ Success SingleWireTransfering::process()
 		if (!byteReceived(&data))
 			break;
 
-		if (data == ContentInCmd && !(mValidBuf & cBufValidInCmd))
+		if (data == ContentScToTaCmd && !(mValidBuf & cBufValidInCmd))
 		{
 			mIdxRx = 0;
 			mBufInCmd[mIdxRx] = 0;
@@ -265,7 +241,7 @@ Success SingleWireTransfering::process()
 		if (!byteReceived(&data))
 			break;
 
-		if (data == FlowTargetToCtrl)
+		if (data == FlowTargetToSched)
 		{
 			mBufInCmd[0] = 0;
 			mState = StContentIdOutSend;

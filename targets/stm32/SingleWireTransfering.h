@@ -81,8 +81,48 @@ protected:
 private:
 
 	SingleWireTransfering();
-	SingleWireTransfering(const SingleWireTransfering &) = delete;
-	SingleWireTransfering &operator=(const SingleWireTransfering &) = delete;
+	SingleWireTransfering(const SingleWireTransfering &)
+		: Processing("")
+		, mModeDebug(0)
+		, mSendReady(false)
+		, mValidBuf(0)
+		, mpSend(NULL)
+		, mpUser(NULL)
+		, mContentTx(0)
+		, mValidIdTx(0)
+		, mpDataTx(NULL)
+		, mIdxRx(0)
+		, mLenSend(0)
+	{
+		mState = 0;
+
+		mBufInCmd[0] = 0;
+		mBufOutProc[0] = 0;
+		mBufOutLog[0] = 0;
+		mBufOutCmd[0] = 0;
+	}
+	SingleWireTransfering &operator=(const SingleWireTransfering &)
+	{
+		mModeDebug = 0;
+		mSendReady = false;
+		mValidBuf = 0;
+		mpSend = NULL;
+		mpUser = NULL;
+		mContentTx = 0;
+		mValidIdTx = 0;
+		mpDataTx = NULL;
+		mIdxRx = 0;
+		mLenSend = 0;
+
+		mState = 0;
+
+		mBufInCmd[0] = 0;
+		mBufOutProc[0] = 0;
+		mBufOutLog[0] = 0;
+		mBufOutCmd[0] = 0;
+
+		return *this;
+	}
 
 	/*
 	 * Naming of functions:  objectVerb()
