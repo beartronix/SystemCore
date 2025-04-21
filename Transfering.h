@@ -91,14 +91,18 @@ public:
 
 protected:
 
+	Transfering()
+		: Processing("")
+		, mReadReady(false), mSendReady(false)
+		, mAddrLocal(""), mPortLocal(0)
+		, mAddrRemote(""), mPortRemote(0)
+		, mDone(false)
+	{}
 	Transfering(const char *name)
 		: Processing(name)
-		, mReadReady(false)
-		, mSendReady(false)
-		, mAddrLocal("")
-		, mPortLocal(0)
-		, mAddrRemote("")
-		, mPortRemote(0)
+		, mReadReady(false), mSendReady(false)
+		, mAddrLocal(""), mPortLocal(0)
+		, mAddrRemote(""), mPortRemote(0)
 		, mDone(false)
 	{}
 	virtual ~Transfering() {}
@@ -112,9 +116,25 @@ protected:
 
 private:
 
-	Transfering() = delete;
-	Transfering(const Transfering &) = delete;
-	Transfering &operator=(const Transfering &) = delete;
+	Transfering(const Transfering &)
+		: Processing("")
+		, mReadReady(false), mSendReady(false)
+		, mAddrLocal(""), mPortLocal(0)
+		, mAddrRemote(""), mPortRemote(0)
+		, mDone(false)
+	{}
+	Transfering &operator=(const Transfering &)
+	{
+		mReadReady = false;
+		mSendReady = false;
+		mAddrLocal = "";
+		mPortLocal = 0;
+		mAddrRemote = "";
+		mPortRemote = 0;
+		mDone = false;
+
+		return *this;
+	}
 
 	/*
 	 * Naming of functions:  objectVerb()
