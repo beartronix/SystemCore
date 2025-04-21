@@ -430,13 +430,13 @@ inline void dInfoInternal(char * &pBuf, char *pBufEnd, const char *msg, ...)
 	va_list args;
 	va_start(args, msg);
 	int lenDone = vsnprintf(pBuf, pBufEnd - pBuf, msg, args);
-	va_end(args);
-
 	if (lenDone < 0)
 	{
+		va_end(args);
 		*pBuf = 0;
 		return;
 	}
+	va_end(args);
 
 	if (lenDone > pBufEnd - pBuf)
 		lenDone = pBufEnd - pBuf;
