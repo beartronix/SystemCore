@@ -78,6 +78,9 @@ bool TcpTransfering::globalInitDone = false;
 TcpTransfering::TcpTransfering(SOCKET fd)
 	: Transfering("TcpTransfering")
 	, mStartMs(0)
+#if CONFIG_PROC_HAVE_DRIVERS
+	, mSocketFdMtx()
+#endif
 	, mSocketFd(fd)
 	, mHostAddrStr("")
 	, mHostPort(0)
@@ -90,8 +93,8 @@ TcpTransfering::TcpTransfering(SOCKET fd)
 	, mBytesSent(0)
 {
 	mState = StSrvStart;
-	addrInfoSet();
 	mSendReady = true;
+	addrInfoSet();
 }
 
 // strAddrHost can be
@@ -101,6 +104,9 @@ TcpTransfering::TcpTransfering(SOCKET fd)
 TcpTransfering::TcpTransfering(const string &hostAddr, uint16_t hostPort)
 	: Transfering("TcpTransfering")
 	, mStartMs(0)
+#if CONFIG_PROC_HAVE_DRIVERS
+	, mSocketFdMtx()
+#endif
 	, mSocketFd(INVALID_SOCKET)
 	, mHostAddrStr(hostAddr)
 	, mHostPort(hostPort)
