@@ -99,6 +99,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 #endif
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
@@ -411,23 +412,40 @@ inline int16_t logEntryCreateDummy(
 #define procInfLog(m, ...)				(genericLog(3, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
 #define procDbgLog(m, ...)				(genericLog(4, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
 
-#if CONFIG_PROC_HAVE_LIB_STD_C
-#define dInfoDebugPrefix
-#define dInfo(m, ...)					dInfoDebugPrefix pBuf = (pBuf += snprintf(pBuf, pBufEnd - pBuf, m, ##__VA_ARGS__), pBuf > pBufEnd ? pBufEnd : pBuf)
-#else
-inline void dInfoDummy(char *pBuf, char *pBufEnd, const char *msg, ...)
+inline void dInfoInternal(char * &pBuf, char *pBufEnd, const char *msg, ...)
 {
-	if (!pBuf)
+	if (!pBuf || !pBufEnd)
 		return;
 
-	*pBuf = 0;
+	if (pBuf >= pBufEnd)
+		return;
 
-	(void)pBufEnd;
+	--pBufEnd;
+	*pBufEnd = 0;
+	++pBufEnd;
+
+#if CONFIG_PROC_HAVE_LIB_STD_C
+	va_list args;
+	va_start(args, msg);
+	int lenDone = vsnprintf(pBuf, pBufEnd - pBuf, msg, args);
+	va_end(args);
+
+	if (lenDone < 0)
+	{
+		*pBuf = 0;
+		return;
+	}
+
+	if (lenDone > pBufEnd - pBuf)
+		lenDone = pBufEnd - pBuf;
+
+	pBuf += lenDone;
+#else
 	(void)msg;
-}
-#define dInfo(m, ...)					dInfoDummy(pBuf, pBufEnd, m, ##__VA_ARGS__)
+	*pBuf = 0;
 #endif
-#define dTrace(x)						pBuf += mncpy(pBuf, pBufEnd - pBuf, (char *)&x, sizeof(x))
+}
+#define dInfo(m, ...)	dInfoInternal(pBuf, pBufEnd, m, ##__VA_ARGS__)
 
 #define dProcessStateEnum(StateName) \
 enum StateName \
