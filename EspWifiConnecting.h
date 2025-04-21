@@ -66,7 +66,10 @@ private:
 		: Processing("")
 		, mStartMs(0), mpNetInterface(NULL), mpHostname(""), mpSsid(NULL)
 		, mpPassword(NULL), mWifiConnected(false), mRssi(0)
-	{}
+	{
+		mState = 0;
+		mIpInfo.ip.addr = 0;
+	}
 	EspWifiConnecting &operator=(const EspWifiConnecting &)
 	{
 		mStartMs = 0;
@@ -76,6 +79,9 @@ private:
 		mpPassword = NULL;
 		mWifiConnected = false;
 		mRssi = 0;
+
+		mState = 0;
+		mIpInfo.ip.addr = 0;
 
 		return *this;
 	}
