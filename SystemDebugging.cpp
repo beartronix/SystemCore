@@ -32,13 +32,25 @@
 
 #include "SystemDebugging.h"
 
+#define dForEach_ProcState(gen) \
+		gen(StStart) \
+		gen(StMain) \
+
+#define dGenProcStateEnum(s) s,
+dProcessStateEnum(ProcState);
+
+#if 0
+#define dGenProcStateString(s) #s,
+dProcessStateStr(ProcState);
+#endif
+
 using namespace std;
 
 typedef list<struct SystemDebuggingPeer>::iterator PeerIter;
-
+#if 0
 bool SystemDebugging::procTreeDetailed = true;
 bool SystemDebugging::procTreeColored = true;
-
+#endif
 queue<string> SystemDebugging::qLogEntries;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxLogEntries;
@@ -69,6 +81,7 @@ SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 	, mProcTreeChangedTime(0)
 	, mPortStart(3000)
 {
+	mState = StStart;
 }
 
 /* member functions */
@@ -93,11 +106,54 @@ void SystemDebugging::levelLogSet(int lvl)
 	levelLog = lvl;
 }
 
-Success SystemDebugging::initialize()
+Success SystemDebugging::process()
 {
-	if (!mpTreeRoot)
-		return procErrLog(-1, "tree root not set");
+	//uint32_t curTimeMs = millis();
+	//uint32_t diffMs = curTimeMs - mStartMs;
+	Success success;
+#if 0
+	dStateTrace;
+#endif
+	switch (mState)
+	{
+	case StStart:
 
+		if (!mpTreeRoot)
+			return procErrLog(-1, "tree root not set");
+
+		success = listenersStart();
+		if (success != Positive)
+			return procErrLog(-1, "could not start listeners");
+
+		//cmdReg("detailed", &SystemDebugging::procTreeDetailedToggle, "", "toggle detailed process tree output", cInternalCmdCls);
+		//cmdReg("colored", &SystemDebugging::procTreeColoredToggle, "", "toggle colored process tree output", cInternalCmdCls);
+		cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
+		cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
+
+		entryLogCreateSet(SystemDebugging::entryLogCreate);
+
+		mState = StMain;
+
+		break;
+	case StMain:
+
+		peerListUpdate();
+		commandAutoProcess();
+
+		processTreeSend();
+#if CONFIG_PROC_HAVE_LOG
+		logEntriesSend();
+#endif
+		break;
+	default:
+		break;
+	}
+
+	return Pending;
+}
+
+Success SystemDebugging::listenersStart()
+{
 	mPeerList.clear();
 
 	// proc tree
@@ -137,30 +193,6 @@ Success SystemDebugging::initialize()
 
 	start(mpLstCmdAuto);
 
-	//cmdReg("detailed", &SystemDebugging::procTreeDetailedToggle, "", "toggle detailed process tree output", cInternalCmdCls);
-	//cmdReg("colored", &SystemDebugging::procTreeColoredToggle, "", "toggle colored process tree output", cInternalCmdCls);
-	cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
-	cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
-
-	entryLogCreateSet(SystemDebugging::entryLogCreate);
-
-	return Positive;
-}
-
-Success SystemDebugging::process()
-{
-	peerListUpdate();
-	commandAutoProcess();
-
-	processTreeSend();
-#if CONFIG_PROC_HAVE_LOG
-	logEntriesSend();
-#endif
-	return Pending;
-}
-
-Success SystemDebugging::shutdown()
-{
 	return Positive;
 }
 
@@ -338,11 +370,14 @@ void SystemDebugging::processTreeSend()
 
 	*buffProcTree = 0;
 
+	bool detailed = true;
+	bool colored = true;
+
 	mpTreeRoot->processTreeStr(
 			buffProcTree,
 			buffProcTree + sizeof(buffProcTree),
-			procTreeDetailed,
-			procTreeColored);
+			detailed,
+			colored);
 
 	string procTree(buffProcTree);
 
@@ -454,7 +489,7 @@ void SystemDebugging::cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd)
 	levelLogSet(lvl);
 	dInfo("System log level set to %d", lvl);
 }
-
+#if 0
 void SystemDebugging::procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd)
 {
 	(void)pArgs;
@@ -474,7 +509,7 @@ void SystemDebugging::procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufE
 	procTreeColored = !procTreeColored;
 #endif
 }
-
+#endif
 void SystemDebugging::entryLogCreate(
 		const int severity,
 		const char *filename,

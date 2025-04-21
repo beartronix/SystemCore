@@ -77,10 +77,66 @@ protected:
 
 private:
 
-	SystemDebugging() = delete;
 	SystemDebugging(Processing *pTreeRoot);
-	SystemDebugging(const SystemDebugging &) = delete;
-	SystemDebugging &operator=(const SystemDebugging &) = delete;
+	SystemDebugging()
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpLstProc(NULL)
+		, mpLstLog(NULL)
+		, mpLstCmd(NULL)
+		, mpLstCmdAuto(NULL)
+		, mPeerList()
+		, mProcTree("")
+		, mListenLocal(false)
+		, mProcTreeChanged(false)
+		, mProcTreePeerAdded(false)
+		, mPeerLogOnceConnected(false)
+		, mUpdateMs(0)
+		, mProcTreeChangedTime(0)
+		, mPortStart(0)
+	{
+		mState = 0;
+	}
+	SystemDebugging(const SystemDebugging &)
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpLstProc(NULL)
+		, mpLstLog(NULL)
+		, mpLstCmd(NULL)
+		, mpLstCmdAuto(NULL)
+		, mPeerList()
+		, mProcTree("")
+		, mListenLocal(false)
+		, mProcTreeChanged(false)
+		, mProcTreePeerAdded(false)
+		, mPeerLogOnceConnected(false)
+		, mUpdateMs(0)
+		, mProcTreeChangedTime(0)
+		, mPortStart(0)
+	{
+		mState = 0;
+	}
+	SystemDebugging &operator=(const SystemDebugging &)
+	{
+		mpTreeRoot = NULL;
+		mpLstProc = NULL;
+		mpLstLog = NULL;
+		mpLstCmd = NULL;
+		mpLstCmdAuto = NULL;
+		mPeerList.clear();
+		mProcTree = "";
+		mListenLocal = false;
+		mProcTreeChanged = false;
+		mProcTreePeerAdded = false;
+		mPeerLogOnceConnected = false;
+		mUpdateMs = 0;
+		mProcTreeChangedTime = 0;
+		mPortStart = 0;
+
+		mState = 0;
+
+		return *this;
+	}
 
 	/*
 	 * Naming of functions:  objectVerb()
@@ -88,9 +144,8 @@ private:
 	 */
 
 	/* member functions */
-	Success initialize();
 	Success process();
-	Success shutdown();
+	Success listenersStart();
 
 	void peerListUpdate();
 	void commandAutoProcess();
@@ -137,8 +192,10 @@ private:
 			const size_t len);
 
 	/* static variables */
+#if 0
 	static bool procTreeDetailed;
 	static bool procTreeColored;
+#endif
 	static std::queue<std::string> qLogEntries;
 	static int levelLog;
 
