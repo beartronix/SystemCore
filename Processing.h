@@ -420,6 +420,8 @@ inline void dInfoInternal(char * &pBuf, char *pBufEnd, const char *msg, ...)
 	if (pBuf >= pBufEnd)
 		return;
 
+	*pBuf = 0;
+
 	--pBufEnd;
 	*pBufEnd = 0;
 	++pBufEnd;
@@ -442,7 +444,6 @@ inline void dInfoInternal(char * &pBuf, char *pBufEnd, const char *msg, ...)
 	pBuf += lenDone;
 #else
 	(void)msg;
-	*pBuf = 0;
 #endif
 }
 #define dInfo(m, ...)	dInfoInternal(pBuf, pBufEnd, m, ##__VA_ARGS__)
