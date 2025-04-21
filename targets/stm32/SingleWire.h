@@ -37,23 +37,23 @@ enum SwtFlowDirection
 	FlowTargetToSched = 0x0C
 };
 
-enum SwtContentScToTa
+enum SwtIdContentScToTa
 {
-	ContentScToTaCmd = 0x1A,
+	IdContentScToTaCmd = 0x1A,
 };
 
-enum SwtContentTaToSc
+enum SwtIdContentTaToSc
 {
-	ContentTaToScNone = 0x15,
-	ContentTaToScProc = 0x11,
-	ContentTaToScLog,
-	ContentTaToScCmd,
+	IdContentTaToScNone = 0x15,
+	IdContentTaToScProc = 0x11,
+	IdContentTaToScLog,
+	IdContentTaToScCmd,
 };
 
-enum SwtContentEnd
+enum SwtIdContentEnd
 {
-	ContentCut = 0x0F,
-	ContentEnd = 0x17,
+	IdContentCut = 0x0F,
+	IdContentEnd = 0x17,
 };
 
 #endif

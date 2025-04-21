@@ -67,7 +67,7 @@ SingleWireTransfering::SingleWireTransfering()
 	, mValidBuf(0)
 	, mpSend(NULL)
 	, mpUser(NULL)
-	, mContentTx(ContentTaToScNone)
+	, mContentTx(IdContentTaToScNone)
 	, mValidIdTx(0)
 	, mpDataTx(NULL)
 	, mIdxRx(0)
@@ -145,21 +145,21 @@ Success SingleWireTransfering::process()
 		if (mValidBuf & cBufValidOutCmd) // highest prio
 		{
 			mValidIdTx = cBufValidOutCmd;
-			mContentTx = ContentTaToScCmd;
+			mContentTx = IdContentTaToScCmd;
 			mpDataTx = mBufOutCmd;
 			mLenSend = sizeof(mBufOutCmd);
 		}
 		else if (mValidBuf & cBufValidOutLog)
 		{
 			mValidIdTx = cBufValidOutLog;
-			mContentTx = ContentTaToScLog;
+			mContentTx = IdContentTaToScLog;
 			mpDataTx = mBufOutLog;
 			mLenSend = sizeof(mBufOutLog);
 		}
 		else if (mValidBuf & cBufValidOutProc) // lowest prio
 		{
 			mValidIdTx = cBufValidOutProc;
-			mContentTx = ContentTaToScProc;
+			mContentTx = IdContentTaToScProc;
 			mpDataTx = mBufOutProc;
 			mLenSend = sizeof(mBufOutProc);
 		}
@@ -167,7 +167,7 @@ Success SingleWireTransfering::process()
 			mLenSend = 0;
 
 		if (mLenSend < 2)
-			mContentTx = ContentTaToScNone;
+			mContentTx = IdContentTaToScNone;
 
 		bufTxPending = 1;
 		mpSend(&mContentTx, sizeof(mContentTx), mpUser);
@@ -180,7 +180,7 @@ Success SingleWireTransfering::process()
 		if (bufTxPending)
 			break;
 
-		if (mContentTx == ContentTaToScNone)
+		if (mContentTx == IdContentTaToScNone)
 		{
 			mState = StFlowControlRcvdWait;
 			break;
@@ -195,7 +195,7 @@ Success SingleWireTransfering::process()
 		mpDataTx[mLenSend] = 0;
 		++mLenSend;
 
-		mpDataTx[mLenSend] = ContentEnd;
+		mpDataTx[mLenSend] = IdContentEnd;
 		++mLenSend;
 
 		mState = StDataSend;
@@ -224,7 +224,7 @@ Success SingleWireTransfering::process()
 		if (!byteReceived(&data))
 			break;
 
-		if (data == ContentScToTaCmd && !(mValidBuf & cBufValidInCmd))
+		if (data == IdContentScToTaCmd && !(mValidBuf & cBufValidInCmd))
 		{
 			mIdxRx = 0;
 			mBufInCmd[mIdxRx] = 0;
@@ -248,7 +248,7 @@ Success SingleWireTransfering::process()
 			break;
 		}
 
-		if (data == ContentEnd)
+		if (data == IdContentEnd)
 		{
 			mBufInCmd[mIdxRx] = 0;
 			mValidBuf |= cBufValidInCmd;
