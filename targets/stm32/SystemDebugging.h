@@ -77,10 +77,42 @@ protected:
 
 private:
 
-	SystemDebugging() = delete;
 	SystemDebugging(Processing *pTreeRoot);
-	SystemDebugging(const SystemDebugging &) = delete;
-	SystemDebugging &operator=(const SystemDebugging &) = delete;
+	SystemDebugging()
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpSend(NULL)
+		, mpUser(NULL)
+		, mReady(false)
+		, mStateCmd(0)
+		, mCntDelay(0)
+	{
+		mState = 0;
+	}
+	SystemDebugging(const SystemDebugging &)
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpSend(NULL)
+		, mpUser(NULL)
+		, mReady(false)
+		, mStateCmd(0)
+		, mCntDelay(0)
+	{
+		mState = 0;
+	}
+	SystemDebugging &operator=(const SystemDebugging &)
+	{
+		mpTreeRoot = NULL;
+		mpSend = NULL;
+		mpUser = NULL;
+		mReady = false;
+		mStateCmd = 0;
+		mCntDelay = 0;
+
+		mState = 0;
+
+		return *this;
+	}
 
 	/*
 	 * Naming of functions:  objectVerb()
