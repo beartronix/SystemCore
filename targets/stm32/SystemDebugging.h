@@ -137,6 +137,7 @@ private:
 	static void cmdInfoHelp(char *pArgs, char *pBuf, char *pBufEnd);
 	static void entryLogCreate(
 			const int severity,
+			const void *pProc,
 			const char *filename,
 			const char *function,
 			const int line,
