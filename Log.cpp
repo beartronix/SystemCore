@@ -186,8 +186,7 @@ int16_t logEntryCreate(
 	}
 #endif
 	// merge
-	size_t idxCurrent, idxStartMsg = 112;
-	int lenDone;
+	int lenDone, lenPrefix2 = 72;
 
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 	lenDone = snprintf(pBuf, pBufEnd - pBuf,
@@ -229,12 +228,10 @@ int16_t logEntryCreate(
 	pBuf += lenDone;
 
 	// prefix padding
-	idxCurrent = pBuf - pBufStart;
-
-	while (idxCurrent < idxStartMsg && pBuf < pBufEnd)
+	while (lenDone < lenPrefix2 && pBuf < pBufEnd)
 	{
 		*pBuf++ = ' ';
-		++idxCurrent;
+		++lenDone;
 	}
 
 	// user msg
