@@ -361,6 +361,7 @@ private:
 #if CONFIG_PROC_HAVE_LOG
 typedef void (*FuncEntryLogCreate)(
 			const int severity,
+			const void *pProc,
 			const char *filename,
 			const char *function,
 			const int line,

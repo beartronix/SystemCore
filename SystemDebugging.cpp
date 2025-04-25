@@ -512,6 +512,7 @@ void SystemDebugging::procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufE
 #endif
 void SystemDebugging::entryLogCreate(
 		const int severity,
+		const void *pProc,
 		const char *filename,
 		const char *function,
 		const int line,
@@ -522,6 +523,7 @@ void SystemDebugging::entryLogCreate(
 #if CONFIG_PROC_HAVE_DRIVERS
 	Guard lock(mtxLogEntries);
 #endif
+	(void)pProc;
 	(void)filename;
 	(void)function;
 	(void)line;

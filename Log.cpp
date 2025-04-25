@@ -65,6 +65,7 @@ using namespace chrono;
 
 typedef void (*FuncEntryLogCreate)(
 			const int severity,
+			const void *pProc,
 			const char *filename,
 			const char *function,
 			const int line,
@@ -290,7 +291,9 @@ int16_t logEntryCreate(
 	}
 #endif
 	if (pFctEntryLogCreate)
-		pFctEntryLogCreate(severity, filename, function, line, code, pBufStart, pBuf - pBufStart);
+		pFctEntryLogCreate(severity,
+			pProc, filename, function, line, code,
+			pBufStart, pBuf - pBufStart);
 
 exitLogEntryCreate:
 	free(pBufStart);
