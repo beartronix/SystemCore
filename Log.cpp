@@ -85,7 +85,7 @@ const char *red("\033[0;31m");
 const char *yellow("\033[0;33m");
 const char *reset("\033[37m");
 
-const size_t cLogEntryBufferSize = 1024;
+const size_t cLogEntryBufferSize = 200;
 static int levelLog = 3;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxPrint;
@@ -186,11 +186,8 @@ int16_t logEntryCreate(
 	}
 #endif
 	// merge
-	int lenPad, lenPadMax = pProc ? 30 : 45;
-	int lenDone, lenFile = 0;
-	char bufPad[1];
-
-	bufPad[0] = 0;
+	size_t idxCurrent, idxStartMsg = 112;
+	int lenDone;
 
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 	lenDone = snprintf(pBuf, pBufEnd - pBuf,
@@ -208,26 +205,19 @@ int16_t logEntryCreate(
 
 	pBuf += lenDone;
 #endif
-	while (filename[lenFile])
-		++lenFile;
-
-	lenPad = lenPadMax - lenFile - 5;
-
 	if (pProc)
 	{
 		lenDone = snprintf(pBuf, pBufEnd - pBuf,
-						"%s  %-20s  %8p %s:%-4d%*s",
+						"%s  %-20s  %8p %s:%-4d",
 						severityToStr(severity),
-						function, pProc, filename, line,
-						lenPad, bufPad);
+						function, pProc, filename, line);
 	}
 	else
 	{
 		lenDone = snprintf(pBuf, pBufEnd - pBuf,
-						"%s  %-20s  %s:%-4d%*s",
+						"%s  %-20s  %s:%-4d",
 						severityToStr(severity),
-						function, filename, line,
-						lenPad, bufPad);
+						function, filename, line);
 	}
 
 	if (lenDone < 0)
@@ -238,6 +228,16 @@ int16_t logEntryCreate(
 
 	pBuf += lenDone;
 
+	// prefix padding
+	idxCurrent = pBuf - pBufStart;
+
+	while (idxCurrent < idxStartMsg && pBuf < pBufEnd)
+	{
+		*pBuf++ = ' ';
+		++idxCurrent;
+	}
+
+	// user msg
 	va_list args;
 
 	va_start(args, msg);
