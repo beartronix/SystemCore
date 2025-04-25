@@ -372,12 +372,13 @@ void levelLogSet(int lvl);
 void entryLogCreateSet(FuncEntryLogCreate pFct);
 int16_t logEntryCreate(
 				const int severity,
+				const void *pProc,
 				const char *filename,
 				const char *function,
 				const int line,
 				const int16_t code,
 				const char *msg, ...);
-#define genericLog(l, c, m, ...)			(logEntryCreate(l, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
+#define genericLog(l, p, c, m, ...)         (logEntryCreate(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #else
 inline void levelLogSet(int lvl)
 {
@@ -386,6 +387,7 @@ inline void levelLogSet(int lvl)
 #define entryLogCreateSet(pFct)
 inline int16_t logEntryCreateDummy(
 				const int severity,
+				const void *pProc,
 				const char *filename,
 				const char *function,
 				const int line,
@@ -393,24 +395,26 @@ inline int16_t logEntryCreateDummy(
 				const char *msg, ...)
 {
 	(void)severity;
+	(void)pProc;
 	(void)filename;
 	(void)function;
 	(void)line;
 	(void)msg;
+
 	return code;
 }
-#define genericLog(l, c, m, ...)	(logEntryCreateDummy(l, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
+#define genericLog(l, p, c, m, ...)         (logEntryCreateDummy(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #endif
 
-#define errLog(c, m, ...)				(c < 0 ? genericLog(1, c, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__) : c)
-#define wrnLog(m, ...)					(genericLog(2, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
-#define infLog(m, ...)					(genericLog(3, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
-#define dbgLog(m, ...)					(genericLog(4, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
+#define errLog(c, m, ...)           (c < 0 ? genericLog(1, NULL, c, m, ##__VA_ARGS__) : c)
+#define wrnLog(m, ...)                      (genericLog(2, NULL, 0, m, ##__VA_ARGS__))
+#define infLog(m, ...)                      (genericLog(3, NULL, 0, m, ##__VA_ARGS__))
+#define dbgLog(m, ...)                      (genericLog(4, NULL, 0, m, ##__VA_ARGS__))
 
-#define procErrLog(c, m, ...)				(c < 0 ? genericLog(1, c, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__) : c)
-#define procWrnLog(m, ...)				(genericLog(2, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
-#define procInfLog(m, ...)				(genericLog(3, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
-#define procDbgLog(m, ...)				(genericLog(4, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
+#define procErrLog(c, m, ...)       (c < 0 ? genericLog(1, this, c, m, ##__VA_ARGS__) : c)
+#define procWrnLog(m, ...)                  (genericLog(2, this, 0, m, ##__VA_ARGS__))
+#define procInfLog(m, ...)                  (genericLog(3, this, 0, m, ##__VA_ARGS__))
+#define procDbgLog(m, ...)                  (genericLog(4, this, 0, m, ##__VA_ARGS__))
 
 inline void dInfoInternal(char * &pBuf, char *pBufEnd, const char *msg, ...)
 {

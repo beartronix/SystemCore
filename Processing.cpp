@@ -30,8 +30,8 @@
 
 #include "Processing.h"
 
-#define coreLog(m, ...)					(genericLog(5, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
-#define procCoreLog(m, ...)				(genericLog(5, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
+#define coreLog(m, ...)					(genericLog(5, NULL, 0, m, ##__VA_ARGS__))
+#define procCoreLog(m, ...)				(genericLog(5, this, 0, m, ##__VA_ARGS__))
 
 #if CONFIG_PROC_HAVE_DRIVERS
 #define CONFIG_PROC_TITLE_NEW_DRIVER

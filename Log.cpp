@@ -114,7 +114,14 @@ static const char *severityToStr(const int severity)
 	return "INV";
 }
 
-int16_t logEntryCreate(const int severity, const char *filename, const char *function, const int line, const int16_t code, const char *msg, ...)
+int16_t logEntryCreate(
+			const int severity,
+			const void *pProc,
+			const char *filename,
+			const char *function,
+			const int line,
+			const int16_t code,
+			const char *msg, ...)
 {
 #if CONFIG_PROC_HAVE_DRIVERS
 	lock_guard<mutex> lock(mtxPrint); // Guard not defined!
@@ -178,26 +185,72 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 	}
 #endif
 	// merge
-	pBuf += snprintf(pBuf, pBufEnd - pBuf,
+	int lenPad, lenPadMax = pProc ? 30 : 45;
+	int lenDone, lenFile = 0;
+	char bufPad[1];
+
+	bufPad[0] = 0;
+
 #if CONFIG_PROC_LOG_HAVE_CHRONO
+	lenDone = snprintf(pBuf, pBufEnd - pBuf,
 					"%s  %02d:%02d:%02d.%03d "
-					"%c%d.%03d  "
-#endif
-					"L%4d  %s  %-20s  ",
-#if CONFIG_PROC_LOG_HAVE_CHRONO
+					"%c%d.%03d  ",
 					timeBuf,
 					int(durHours.count()), int(durMinutes.count()),
 					int(durSecs.count()), int(durMillis.count()),
-					diffMaxed ? '>' : '+', tDiffSec, tDiffMs,
+					diffMaxed ? '>' : '+', tDiffSec, tDiffMs);
+	if (lenDone < 0)
+		goto exitLogEntryCreate;
+
+	if (lenDone > pBufEnd - pBuf)
+		lenDone = pBufEnd - pBuf;
+
+	pBuf += lenDone;
 #endif
-					line, severityToStr(severity), function);
+	while (filename[lenFile])
+		++lenFile;
+
+	lenPad = lenPadMax - lenFile - 5;
+
+	if (pProc)
+	{
+		lenDone = snprintf(pBuf, pBufEnd - pBuf,
+						"%s  %-20s  %8p %s:%-4d%*s",
+						severityToStr(severity),
+						function, pProc, filename, line,
+						lenPad, bufPad);
+	}
+	else
+	{
+		lenDone = snprintf(pBuf, pBufEnd - pBuf,
+						"%s  %-20s  %s:%-4d%*s",
+						severityToStr(severity),
+						function, filename, line,
+						lenPad, bufPad);
+	}
+
+	if (lenDone < 0)
+		goto exitLogEntryCreate;
+
+	if (lenDone > pBufEnd - pBuf)
+		lenDone = pBufEnd - pBuf;
+
+	pBuf += lenDone;
 
 	va_list args;
 
 	va_start(args, msg);
-	pBuf += vsnprintf(pBuf, pBufEnd - pBuf, msg, args);
-	if (pBuf > pBufEnd)
-		pBuf = pBufEnd;
+	lenDone = vsnprintf(pBuf, pBufEnd - pBuf, msg, args);
+	if (lenDone < 0)
+	{
+		va_end(args);
+		goto exitLogEntryCreate;
+	}
+
+	if (lenDone > pBufEnd - pBuf)
+		lenDone = pBufEnd - pBuf;
+
+	pBuf += lenDone;
 	va_end(args);
 
 #if CONFIG_PROC_LOG_HAVE_STDOUT
@@ -239,6 +292,7 @@ int16_t logEntryCreate(const int severity, const char *filename, const char *fun
 	if (pFctEntryLogCreate)
 		pFctEntryLogCreate(severity, filename, function, line, code, pBufStart, pBuf - pBufStart);
 
+exitLogEntryCreate:
 	free(pBufStart);
 
 	return code;
