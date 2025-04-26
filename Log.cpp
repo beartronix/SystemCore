@@ -207,7 +207,7 @@ int16_t logEntryCreate(
 	if (pProc)
 	{
 		lenDone = snprintf(pBuf, pBufEnd - pBuf,
-						"%s  %-20s  %8p %s:%-4d  ",
+						"%s  %-20s  %p %s:%-4d  ",
 						severityToStr(severity),
 						function, pProc, filename, line);
 	}
