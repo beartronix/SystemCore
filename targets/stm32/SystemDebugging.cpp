@@ -262,6 +262,7 @@ void SystemDebugging::commandInterpret()
 	char *pBuf = pSwt->mBufOutCmd;
 	char *pBufEnd = pBuf + sizeof(pSwt->mBufOutCmd) - 1;
 	Command *pCmd = commands;
+	size_t lenCmd;
 
 	switch (mStateCmd)
 	{
@@ -296,13 +297,19 @@ void SystemDebugging::commandInterpret()
 
 		for (size_t i = 0; i < dNumCmds; ++i, ++pCmd)
 		{
-			if (!CMD(pCmd->pId))
+			if (CMD(pCmd->pId))
+				lenCmd = strlen(pCmd->pId);
+			else
+			if (pCmd->pShortcut && pCmd->pShortcut[0] &&
+					CMD(pCmd->pShortcut))
+				lenCmd = strlen(pCmd->pShortcut);
+			else
 				continue;
 
 			if (!pCmd->pFctExec)
 				continue;
 
-			char *pArg = pSwt->mBufInCmd + strlen(pCmd->pId);
+			char *pArg = pSwt->mBufInCmd + lenCmd;
 
 			if (*pArg)
 				++pArg;
