@@ -115,6 +115,19 @@ static const char *severityToStr(const int severity)
 	return "INV";
 }
 
+static int pBufSaturate(int lenDone, char * &pBuf, const char *pBufEnd)
+{
+	if (lenDone < 0)
+		return lenDone;
+
+	if (lenDone > pBufEnd - pBuf)
+		lenDone = pBufEnd - pBuf;
+
+	pBuf += lenDone;
+
+	return lenDone;
+}
+
 int16_t logEntryCreate(
 			const int severity,
 			const void *pProc,
@@ -196,13 +209,8 @@ int16_t logEntryCreate(
 					int(durHours.count()), int(durMinutes.count()),
 					int(durSecs.count()), int(durMillis.count()),
 					diffMaxed ? '>' : '+', tDiffSec, tDiffMs);
-	if (lenDone < 0)
+	if (pBufSaturate(lenDone, pBuf, pBufEnd) < 0)
 		goto exitLogEntryCreate;
-
-	if (lenDone > pBufEnd - pBuf)
-		lenDone = pBufEnd - pBuf;
-
-	pBuf += lenDone;
 #endif
 	if (pProc)
 	{
@@ -219,13 +227,8 @@ int16_t logEntryCreate(
 						function, filename, line);
 	}
 
-	if (lenDone < 0)
+	if (pBufSaturate(lenDone, pBuf, pBufEnd) < 0)
 		goto exitLogEntryCreate;
-
-	if (lenDone > pBufEnd - pBuf)
-		lenDone = pBufEnd - pBuf;
-
-	pBuf += lenDone;
 
 	// prefix padding
 	while (lenDone < lenPrefix2 && pBuf < pBufEnd)
@@ -239,16 +242,11 @@ int16_t logEntryCreate(
 
 	va_start(args, msg);
 	lenDone = vsnprintf(pBuf, pBufEnd - pBuf, msg, args);
-	if (lenDone < 0)
+	if (pBufSaturate(lenDone, pBuf, pBufEnd) < 0)
 	{
 		va_end(args);
 		goto exitLogEntryCreate;
 	}
-
-	if (lenDone > pBufEnd - pBuf)
-		lenDone = pBufEnd - pBuf;
-
-	pBuf += lenDone;
 	va_end(args);
 
 #if CONFIG_PROC_LOG_HAVE_STDOUT
