@@ -205,7 +205,10 @@ Success TcpListening::socketCreate(bool isIPv6, SOCKET &fdLst, string &strAddr)
 		struct sockaddr_in6 *pAddr6 = (struct sockaddr_in6 *)&addr;
 
 		pAddr6->sin6_port = htons(mPort);
-		pAddr6->sin6_addr = mLocalOnly ? in6addr_loopback : in6addr_any;
+
+		memset(&pAddr6->sin6_addr, 0, sizeof(pAddr6->sin6_addr));
+		if (mLocalOnly)
+			pAddr6->sin6_addr.s6_addr[15] = 1; // ::1
 	}
 	else
 		return procErrLog(-1, "unknown address family");
