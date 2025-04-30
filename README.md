@@ -2,7 +2,7 @@
 <h2 id="processing-start" style="display:none;"></h2>
 
 [![Standard](https://img.shields.io/badge/standard-C%2B%2B11-blue.svg?style=plastic&logo=c%2B%2B)](https://en.wikipedia.org/wiki/C%2B%2B#Standardization)
-![GitHub](https://img.shields.io/github/license/NoOrientationProgramming/ProcessingCore?style=plastic&color=blue)
+![GitHub](https://img.shields.io/github/license/NoOrientationProgramming/SystemCore?style=plastic&color=blue)
 
 [![Windows](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/windows.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/windows.yml) [![Linux](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/linux.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/linux.yml) [![MacOS](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/macos.yml/badge.svg)](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/macos.yml) [![FreeBSD](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/freebsd.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/freebsd.yml) [![Cross arm & mingw](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/cross.yml/badge.svg?branch=main)](https://github.com/NoOrientationProgramming/code-orb/actions/workflows/cross.yml)
 
@@ -51,11 +51,11 @@ The [Tutorials](https://github.com/NoOrientationProgramming/ProcessingTutorials)
 
 ### How to add to your project
 
-`git submodule add https://github.com/NoOrientationProgramming/ProcessingCore.git`
+`git submodule add https://github.com/NoOrientationProgramming/SystemCore.git`
 
 ### Use Templates!
 
-To implement a new process you can use the provided shell scripts on linux: [cppprocessing.sh](https://github.com/NoOrientationProgramming/ProcessingCore/blob/main/tools/cppprocessing.sh) / [cppprocessing_simple.sh](https://github.com/NoOrientationProgramming/ProcessingCore/blob/main/tools/cppprocessing_simple.sh)
+To implement a new process you can use the provided shell scripts on linux: [cppprocessing.sh](https://github.com/NoOrientationProgramming/SystemCore/blob/main/tools/cppprocessing.sh) / [cppprocessing_simple.sh](https://github.com/NoOrientationProgramming/SystemCore/blob/main/tools/cppprocessing_simple.sh)
 
 Or just create your own..
 
