@@ -73,7 +73,11 @@ typedef void (*FuncEntryLogCreate)(
 			const char *msg,
 			const size_t len);
 
+typedef uint32_t (*FuncCntTimeCreate)();
+
 static FuncEntryLogCreate pFctEntryLogCreate = NULL;
+static FuncCntTimeCreate pFctCntTimeCreate = NULL;
+static int widthCntTime = 0;
 
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 static system_clock::time_point tOld;
@@ -99,6 +103,15 @@ void levelLogSet(int lvl)
 void entryLogCreateSet(FuncEntryLogCreate pFct)
 {
 	pFctEntryLogCreate = pFct;
+}
+
+void cntTimeCreateSet(FuncCntTimeCreate pFct, int width)
+{
+	if (width < -20 || width > 20)
+		return;
+
+	pFctCntTimeCreate = pFct;
+	widthCntTime = width;
 }
 
 static const char *severityToStr(const int severity)
@@ -238,6 +251,18 @@ int16_t entryLogCreate(
 	if (pBufSaturate(lenDone, pBuf, pBufEnd) < 0)
 		goto exitLogEntryCreate;
 #endif
+	if (pFctCntTimeCreate)
+	{
+		uint32_t cntTime = pFctCntTimeCreate();
+
+		lenDone = snprintf(pBuf, pBufEnd - pBuf,
+						"%*" PRIu32 "  ",
+						widthCntTime, cntTime);
+
+		if (pBufSaturate(lenDone, pBuf, pBufEnd) < 0)
+			goto exitLogEntryCreate;
+	}
+
 	if (pProc)
 	{
 		lenDone = snprintf(pBuf, pBufEnd - pBuf,
