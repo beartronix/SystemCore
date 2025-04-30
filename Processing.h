@@ -371,7 +371,13 @@ typedef void (*FuncEntryLogCreate)(
 
 void levelLogSet(int lvl);
 void entryLogCreateSet(FuncEntryLogCreate pFct);
-int16_t logEntryCreate(
+
+int16_t entryLogSimpleCreate(
+				const int isErr,
+				const int16_t code,
+				const char *msg, ...);
+
+int16_t entryLogCreate(
 				const int severity,
 				const void *pProc,
 				const char *filename,
@@ -379,14 +385,21 @@ int16_t logEntryCreate(
 				const int line,
 				const int16_t code,
 				const char *msg, ...);
-#define genericLog(l, p, c, m, ...)         (logEntryCreate(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #else
-inline void levelLogSet(int lvl)
-{
-	(void)lvl;
-}
+#define levelLogSet(lvl)
 #define entryLogCreateSet(pFct)
-inline int16_t logEntryCreateDummy(
+
+inline int16_t entryLogSimpleCreate(
+				const int isErr,
+				const int16_t code,
+				const char *msg, ...)
+{
+	(void)msg;
+
+	return code;
+}
+
+inline int16_t entryLogCreate(
 				const int severity,
 				const void *pProc,
 				const char *filename,
@@ -404,8 +417,13 @@ inline int16_t logEntryCreateDummy(
 
 	return code;
 }
-#define genericLog(l, p, c, m, ...)         (logEntryCreateDummy(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #endif
+
+#define genericSimpleLog(e, c, m, ...)      (entryLogSimpleCreate(e, c, m, ##__VA_ARGS__))
+#define genericLog(l, p, c, m, ...)         (entryLogCreate(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
+
+#define userErrLog(c, m, ...)       (c < 0 ? genericSimpleLog(1, c, m, ##__VA_ARGS__) : c)
+#define userInfLog(m, ...)                  (genericSimpleLog(0, 0, m, ##__VA_ARGS__))
 
 #define errLog(c, m, ...)           (c < 0 ? genericLog(1, NULL, c, m, ##__VA_ARGS__) : c)
 #define wrnLog(m, ...)                      (genericLog(2, NULL, 0, m, ##__VA_ARGS__))

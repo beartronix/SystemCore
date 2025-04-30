@@ -128,7 +128,33 @@ static int pBufSaturate(int lenDone, char * &pBuf, const char *pBufEnd)
 	return lenDone;
 }
 
-int16_t logEntryCreate(
+int16_t entryLogSimpleCreate(
+			const int isErr,
+			const int16_t code,
+			const char *msg, ...)
+{
+#if CONFIG_PROC_HAVE_DRIVERS
+	lock_guard<mutex> lock(mtxPrint); // Guard not defined!
+#endif
+	FILE *pStream = isErr ? stderr : stdout;
+	int lenDone;
+	va_list args;
+
+	va_start(args, msg);
+	lenDone = vfprintf(pStream, msg, args);
+	if (lenDone < 0)
+	{
+		va_end(args);
+		return code;
+	}
+	va_end(args);
+
+	fflush(pStream);
+
+	return code;
+}
+
+int16_t entryLogCreate(
 			const int severity,
 			const void *pProc,
 			const char *filename,

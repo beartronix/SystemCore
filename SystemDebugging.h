@@ -182,7 +182,7 @@ private:
 	static void cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd);
 	static void procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd);
 	static void procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufEnd);
-	static void entryLogCreate(
+	static void entryLogEnqueue(
 			const int severity,
 			const void *pProc,
 			const char *filename,
@@ -193,10 +193,6 @@ private:
 			const size_t len);
 
 	/* static variables */
-#if 0
-	static bool procTreeDetailed;
-	static bool procTreeColored;
-#endif
 	static std::queue<std::string> qLogEntries;
 	static int levelLog;
 

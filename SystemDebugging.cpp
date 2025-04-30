@@ -125,12 +125,10 @@ Success SystemDebugging::process()
 		if (success != Positive)
 			return procErrLog(-1, "could not start listeners");
 
-		//cmdReg("detailed", &SystemDebugging::procTreeDetailedToggle, "", "toggle detailed process tree output", cInternalCmdCls);
-		//cmdReg("colored", &SystemDebugging::procTreeColoredToggle, "", "toggle colored process tree output", cInternalCmdCls);
 		cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
 		cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
 
-		entryLogCreateSet(SystemDebugging::entryLogCreate);
+		entryLogCreateSet(SystemDebugging::entryLogEnqueue);
 
 		mState = StMain;
 
@@ -489,28 +487,8 @@ void SystemDebugging::cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd)
 	levelLogSet(lvl);
 	dInfo("System log level set to %d", lvl);
 }
-#if 0
-void SystemDebugging::procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd)
-{
-	(void)pArgs;
-	(void)pBuf;
-	(void)pBufEnd;
 
-	procTreeDetailed = !procTreeDetailed;
-}
-
-void SystemDebugging::procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufEnd)
-{
-	(void)pArgs;
-	(void)pBuf;
-	(void)pBufEnd;
-
-#if CONFIG_PROC_USE_DRIVER_COLOR
-	procTreeColored = !procTreeColored;
-#endif
-}
-#endif
-void SystemDebugging::entryLogCreate(
+void SystemDebugging::entryLogEnqueue(
 		const int severity,
 		const void *pProc,
 		const char *filename,
