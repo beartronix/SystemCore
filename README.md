@@ -35,19 +35,21 @@ However, your coding style is not restricted in any way! Similar to LaTeX, focus
 
 The code of this repository is already very mature and has been successfully used on the following systems
 
-- Linux / Raspberry Pi
-  - GCC
 - Windows
   - MinGW
   - MSVC
-- ESP32
+- Linux / Raspberry Pi
+  - GCC
+- MacOS
 - FreeBSD
-- STM32G030 - Only Processing()
-  - Bare Metal
+- ESP32
+- STM32
+- RISC-V
+- ARM
 
 ## Learn how to use it
 
-The [Tutorials](https://github.com/NoOrientationProgramming/ProcessingTutorials) provide more information on how to delve into this wonderful (recursive) world ..
+The [Tutorials](https://github.com/NoOrientationProgramming/NopTutorials) provide more information on how to delve into this wonderful (recursive) world ..
 
 ### How to add to your project
 
@@ -65,11 +67,11 @@ The key element consists of a single file named Processing.cpp. This file contai
 
 <p align="center">
   <kbd>
-    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/system/core-dependencies.svg" style="max-width:100%"/>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/NopTutorials/main/doc/system/core-dependencies.svg" style="max-width:100%"/>
   </kbd>
 </p>
 
-When using the Processing() class the entire system structure is recursive. This has a big and very beneficial impact during development, runtime, documentation and communication with other team members independent of their background.
+When using the SystemCore the entire system structure is recursive. This has a big and very beneficial impact during development, runtime, documentation and communication with other team members independent of their background.
 
 There is no low- or high-level code. Just **one essential looped function**: `process()` .. everywhere
 
@@ -117,7 +119,7 @@ Just one quick look is needed to see how your **entire** system is doing.
 
 <p align="center">
   <kbd>
-    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/channel-dbg-1_tree-proc.png" style="max-width:100%"/>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/NopTutorials/main/doc/channel-dbg-1_tree-proc.png" style="max-width:100%"/>
   </kbd>
 </p>
 
@@ -127,7 +129,7 @@ What is happening. But much more important: **Who** is doing what and when
 
 <p align="center">
   <kbd>
-    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/channel-dbg-2_log.png"/>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/NopTutorials/main/doc/channel-dbg-2_log.png"/>
   </kbd>
 </p>
 
@@ -153,7 +155,7 @@ Success Supervising::initialize()
 
 <p align="center">
   <kbd>
-    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/channel-dbg-3_cmd.png" style="max-width:100%"/>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/NopTutorials/main/doc/channel-dbg-3_cmd.png" style="max-width:100%"/>
   </kbd>
 </p>
 
@@ -238,7 +240,7 @@ TODO
 
 <p align="center">
   <kbd>
-    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/ProcessingTutorials/main/doc/system/recursion.svg" style="width:700px;max-width:100%"/>
+    <img src="https://raw.githubusercontent.com/NoOrientationProgramming/NopTutorials/main/doc/system/recursion.svg" style="width:700px;max-width:100%"/>
   </kbd>
 </p>
 
