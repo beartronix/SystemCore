@@ -135,7 +135,7 @@ private:
 
 	/* static functions */
 	static void cmdInfoHelp(char *pArgs, char *pBuf, char *pBufEnd);
-	static void entryLogCreate(
+	static void entryLogEnqueue(
 			const int severity,
 			const void *pProc,
 			const char *filename,

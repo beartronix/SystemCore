@@ -237,7 +237,7 @@ Success SystemDebugging::process()
 		if (!pSwt->mSendReady)
 			break;
 
-		entryLogCreateSet(SystemDebugging::entryLogCreate);
+		entryLogCreateSet(SystemDebugging::entryLogEnqueue);
 
 		mReady = true;
 
@@ -409,7 +409,7 @@ emptySend:
 	idxInfo = 0;
 }
 
-void SystemDebugging::entryLogCreate(
+void SystemDebugging::entryLogEnqueue(
 		const int severity,
 		const void *pProc,
 		const char *filename,
