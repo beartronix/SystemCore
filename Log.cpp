@@ -238,7 +238,7 @@ int16_t entryLogCreate(
 	}
 #endif
 	// merge
-	int lenDone, lenPrefix2 = 72;
+	int lenDone, lenPrefix2 = 73;
 
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 	lenDone = snprintf(pBuf, pBufEnd - pBuf,
