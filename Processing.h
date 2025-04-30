@@ -358,6 +358,8 @@ private:
 #endif
 #define __PROC_FILENAME__ (procStrrChr(__FILE__, '/') ? procStrrChr(__FILE__, '/') + 1 : __FILE__)
 
+typedef uint32_t (*FuncCntTimeCreate)();
+
 #if CONFIG_PROC_HAVE_LOG
 typedef void (*FuncEntryLogCreate)(
 			const int severity,
@@ -369,11 +371,9 @@ typedef void (*FuncEntryLogCreate)(
 			const char *msg,
 			const size_t len);
 
-typedef uint32_t (*FuncCntTimeCreate)();
-
 void levelLogSet(int lvl);
 void entryLogCreateSet(FuncEntryLogCreate pFct);
-void cntTimeCreateSet(FuncCntTimeCreate pFct, int width);
+void cntTimeCreateSet(FuncCntTimeCreate pFct, int width = 8);
 
 int16_t entryLogSimpleCreate(
 				const int isErr,
@@ -396,8 +396,14 @@ inline void levelLogSet(int lvl)
 {
 	(void)lvl;
 }
+
 #define entryLogCreateSet(pFct)
-#define cntTimeCreateSet(pFct, w)
+
+inline void cntTimeCreateSet(FuncCntTimeCreate pFct, int width = 8)
+{
+	(void)pFct;
+	(void)width;
+}
 
 inline int16_t entryLogSimpleCreateDummy(
 				const int isErr,
