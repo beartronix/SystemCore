@@ -29,8 +29,8 @@
 */
 
 #include <string.h>
-#include <cstdint>
-#include <cinttypes>
+#include <stdint.h>
+#include <inttypes.h>
 #include <chrono>
 
 #include "SystemCommanding.h"
