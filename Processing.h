@@ -96,10 +96,10 @@
 #endif
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
-#include <cstdint>
-#include <cstring>
-#include <cstdio>
-#include <cstdarg>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 #endif
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
