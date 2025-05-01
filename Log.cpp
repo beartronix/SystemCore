@@ -44,13 +44,13 @@
 #endif
 #endif
 
-#include <cinttypes>
+#include <inttypes.h>
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 #include <chrono>
 #endif
-#include <cstdarg>
-#include <cstdlib>
-#include <cstdio>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
 #if CONFIG_PROC_HAVE_DRIVERS
 #include <mutex>
 #endif
