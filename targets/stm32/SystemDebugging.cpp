@@ -370,6 +370,8 @@ void SystemDebugging::procTreeSend()
 
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
 {
+	(void)pBuf;
+	(void)pBufEnd;
 #if 0
 	dInfo("State\t\t%s\n", ProcStateString[mState]);
 	dInfo("State cmd\t\t%s\n", CmdStateString[mStateCmd]);
@@ -422,6 +424,7 @@ void SystemDebugging::entryLogEnqueue(
 #if CONFIG_PROC_HAVE_DRIVERS
 	Guard lock(mtxLogEntries);
 #endif
+	(void)pProc;
 	(void)filename;
 	(void)function;
 	(void)line;
