@@ -63,6 +63,8 @@ public:
 	}
 
 	void fctDataSendSet(FuncDataSend pFct, void *pUser);
+	void logImmediateSendSet(bool val = true);
+
 	void dataReceived(char *pData, size_t len);
 	void dataSent();
 
@@ -135,6 +137,7 @@ private:
 
 	/* static functions */
 	static void cmdInfoHelp(char *pArgs, char *pBuf, char *pBufEnd);
+	static void cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd);
 	static void entryLogEnqueue(
 			const int severity,
 			const void *pProc,

@@ -63,6 +63,7 @@ public:
 	void fctDataSendSet(FuncDataSend pFct, void *pUser);
 	void dataReceived(char *pData, size_t len);
 	void dataSent();
+	void logImmediateSend();
 
 	bool mSendReady;
 
@@ -133,6 +134,7 @@ private:
 	Success process();
 	void processInfo(char *pBuf, char *pBufEnd);
 
+	void contentOutSend();
 	uint8_t byteReceived(char *pData);
 
 	/* member variables */

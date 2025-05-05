@@ -103,6 +103,25 @@ void SingleWireTransfering::dataSent()
 	bufTxPending = 0;
 }
 
+void SingleWireTransfering::logImmediateSend()
+{
+	mLenTx = sizeof(mBufOutLog);
+	if (mLenTx < 3)
+	{
+		mValidBuf &= ~cBufValidOutLog;
+		return;
+	}
+
+	mContentIdOut = IdContentTaToScLog;
+	mpDataTx = mBufOutLog;
+	mValidIdTx = cBufValidOutLog;
+
+	contentOutSend();
+
+	while (bufTxPending);
+	mValidBuf &= ~cBufValidOutLog;
+}
+
 Success SingleWireTransfering::process()
 {
 	char data;
@@ -142,24 +161,24 @@ Success SingleWireTransfering::process()
 
 		if (mValidBuf & cBufValidOutCmd) // highest prio
 		{
-			mValidIdTx = cBufValidOutCmd;
 			mContentIdOut = IdContentTaToScCmd;
-			mpDataTx = mBufOutCmd;
 			mLenTx = sizeof(mBufOutCmd);
+			mpDataTx = mBufOutCmd;
+			mValidIdTx = cBufValidOutCmd;
 		}
 		else if (mValidBuf & cBufValidOutLog)
 		{
-			mValidIdTx = cBufValidOutLog;
 			mContentIdOut = IdContentTaToScLog;
-			mpDataTx = mBufOutLog;
 			mLenTx = sizeof(mBufOutLog);
+			mpDataTx = mBufOutLog;
+			mValidIdTx = cBufValidOutLog;
 		}
 		else if (mValidBuf & cBufValidOutProc) // lowest prio
 		{
-			mValidIdTx = cBufValidOutProc;
 			mContentIdOut = IdContentTaToScProc;
-			mpDataTx = mBufOutProc;
 			mLenTx = sizeof(mBufOutProc);
+			mpDataTx = mBufOutProc;
+			mValidIdTx = cBufValidOutProc;
 		}
 		else
 			mLenTx = sizeof(mpDataTx[0]);
@@ -168,25 +187,7 @@ Success SingleWireTransfering::process()
 		if (mLenTx < 3)
 			mContentIdOut = IdContentTaToScNone;
 
-		mpDataTx[0] = mContentIdOut;
-
-		if (mContentIdOut != IdContentTaToScNone)
-		{
-			// protect strlen(). Zero byte and 'content end' identifier byte must be stored at least
-			mLenTx -= 2;
-			mpDataTx[mLenTx] = 0;
-
-			mLenTx = strlen(mpDataTx);
-
-			mpDataTx[mLenTx] = 0;
-			++mLenTx;
-
-			mpDataTx[mLenTx] = IdContentEnd;
-			++mLenTx;
-		}
-
-		bufTxPending = 1;
-		mpSend(mpDataTx, mLenTx, mpUser);
+		contentOutSend();
 
 		mState = StContentOutSentWait;
 
@@ -252,6 +253,29 @@ Success SingleWireTransfering::process()
 	}
 
 	return Pending;
+}
+
+void SingleWireTransfering::contentOutSend()
+{
+	mpDataTx[0] = mContentIdOut;
+
+	if (mContentIdOut != IdContentTaToScNone)
+	{
+		// protect strlen(). Zero byte and 'content end' identifier byte must be stored at least
+		mLenTx -= 2;
+		mpDataTx[mLenTx] = 0;
+
+		mLenTx = strlen(mpDataTx);
+
+		mpDataTx[mLenTx] = 0;
+		++mLenTx;
+
+		mpDataTx[mLenTx] = IdContentEnd;
+		++mLenTx;
+	}
+
+	bufTxPending = 1;
+	mpSend(mpDataTx, mLenTx, mpUser);
 }
 
 uint8_t SingleWireTransfering::byteReceived(char *pData)

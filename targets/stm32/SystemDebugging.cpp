@@ -79,6 +79,8 @@ static uint16_t idxInfo = 0;
 const size_t dNumCmds = 23;
 Command commands[dNumCmds] = {};
 
+static bool mLogImmediateSend = false;
+
 SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 	: Processing("SystemDebugging")
 	, mpTreeRoot(pTreeRoot)
@@ -97,6 +99,11 @@ void SystemDebugging::fctDataSendSet(FuncDataSend pFct, void *pUser)
 {
 	mpSend = pFct;
 	mpUser = pUser;
+}
+
+void SystemDebugging::logImmediateSendSet(bool val)
+{
+	mLogImmediateSend = val;
 }
 
 void SystemDebugging::dataReceived(char *pData, size_t len)
@@ -227,6 +234,7 @@ Success SystemDebugging::process()
 		start(pSwt);
 
 		cmdReg("infoHelp", cmdInfoHelp);
+		cmdReg("levelLogSys", cmdLevelLogSysSet);
 
 		mState = StSendReadyWait;
 
@@ -277,6 +285,8 @@ void SystemDebugging::commandInterpret()
 		break;
 	case StCmdInterpret: // interpret/decode and execute
 
+		//procInfLog("Received command: %s", pSwt->mBufInCmd);
+
 		szBuf = sizeof(pSwt->mBufOutCmd);
 		if (szBuf < 3)
 		{
@@ -291,8 +301,6 @@ void SystemDebugging::commandInterpret()
 		// <content ID>...<zero byte><content end>
 		pBuf += 1; // make offset for content ID
 		pBufEnd -= 2; // point to second to last byte
-
-		//procInfLog("Received command: %s", pSwt->mBufInCmd);
 
 		*pBuf = 0; // dInfo!
 
@@ -384,6 +392,8 @@ void SystemDebugging::procTreeSend()
 	pBuf += 1; // make offset for content ID
 	pBufEnd -= 2; // point to second to last byte
 
+	*pBuf= 0;
+
 	mpTreeRoot->processTreeStr(
 				pBuf, pBufEnd,
 				true, true);
@@ -398,10 +408,6 @@ void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
 #if 0
 	dInfo("State\t\t%s\n", ProcStateString[mState]);
 	dInfo("State cmd\t\t%s\n", CmdStateString[mStateCmd]);
-#endif
-#if 0
-	dInfo("En High sens\t%d\n", HAL_GPIO_ReadPin(HighSensEn_GPIO_Port, HighSensEn_Pin));
-	dInfo("En RX\t\t%d\n", HAL_GPIO_ReadPin(RxEn_GPIO_Port, RxEn_Pin));
 #endif
 }
 
@@ -432,6 +438,18 @@ void SystemDebugging::cmdInfoHelp(char *pArgs, char *pBuf, char *pBufEnd)
 emptySend:
 	*pBuf = 0;
 	idxInfo = 0;
+}
+
+void SystemDebugging::cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd)
+{
+	const int lvlDefault = 2;
+	int lvl = lvlDefault;
+
+	if (pArgs && *pArgs >= '0' && *pArgs <= '5')
+		lvl = *pArgs - '0';
+
+	levelLogSet(lvl);
+	dInfo("System log level set to %d", lvl);
 }
 
 void SystemDebugging::entryLogEnqueue(
@@ -468,7 +486,7 @@ void SystemDebugging::entryLogEnqueue(
 
 	pSwt->mValidBuf |= cBufValidOutLog;
 
-	char *pBuf = pSwt->mBufOutProc;
+	char *pBuf = pSwt->mBufOutLog;
 	char *pBufEnd = pBuf + szBuf;
 
 	// <content ID>...<zero byte><content end>
@@ -478,8 +496,15 @@ void SystemDebugging::entryLogEnqueue(
 	size_t lenMax = pBufEnd - pBuf;
 	size_t lenReq = PMIN(len, lenMax);
 
+	*pBuf= 0;
+
 	memcpy(pBuf, msg, lenReq);
 
-	*pBufEnd = 0;
+	pBuf[lenReq] = 0;
+
+	if (!mLogImmediateSend)
+		return;
+
+	pSwt->logImmediateSend();
 }
 
