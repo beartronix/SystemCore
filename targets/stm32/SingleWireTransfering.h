@@ -88,11 +88,11 @@ private:
 		, mValidBuf(0)
 		, mpSend(NULL)
 		, mpUser(NULL)
-		, mContentTx(0)
+		, mContentIdOut(0)
 		, mValidIdTx(0)
 		, mpDataTx(NULL)
 		, mIdxRx(0)
-		, mLenSend(0)
+		, mLenTx(0)
 	{
 		mState = 0;
 
@@ -108,11 +108,11 @@ private:
 		mValidBuf = 0;
 		mpSend = NULL;
 		mpUser = NULL;
-		mContentTx = 0;
+		mContentIdOut = 0;
 		mValidIdTx = 0;
 		mpDataTx = NULL;
 		mIdxRx = 0;
-		mLenSend = 0;
+		mLenTx = 0;
 
 		mState = 0;
 
@@ -138,11 +138,11 @@ private:
 	/* member variables */
 	FuncDataSend mpSend;
 	void *mpUser;
-	char mContentTx;
+	char mContentIdOut;
 	uint8_t mValidIdTx;
 	char *mpDataTx;
 	uint8_t mIdxRx;
-	uint16_t mLenSend;
+	uint16_t mLenTx;
 
 	/* static functions */
 

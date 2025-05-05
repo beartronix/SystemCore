@@ -49,7 +49,6 @@ dProcessStateStr(ProcState);
 		gen(StCmdRcvdWait) \
 		gen(StCmdInterpret) \
 		gen(StCmdSendStart) \
-		gen(StCmdSentWait) \
 
 #define dGenCmdStateEnum(s) s,
 dProcessStateEnum(CmdState);
@@ -259,10 +258,9 @@ Success SystemDebugging::process()
 
 void SystemDebugging::commandInterpret()
 {
-	char *pBuf = pSwt->mBufOutCmd;
-	char *pBufEnd = pBuf + sizeof(pSwt->mBufOutCmd) - 1;
-	Command *pCmd = commands;
-	size_t lenCmd;
+	char *pBuf, *pBufEnd;
+	size_t lenCmd, szBuf;
+	Command *pCmd;
 
 	switch (mStateCmd)
 	{
@@ -271,10 +269,32 @@ void SystemDebugging::commandInterpret()
 		if (!(pSwt->mValidBuf & cBufValidInCmd))
 			break;
 
+		if (pSwt->mValidBuf & cBufValidOutCmd)
+			break;
+
 		mStateCmd = StCmdInterpret;
 
 		break;
 	case StCmdInterpret: // interpret/decode and execute
+
+		szBuf = sizeof(pSwt->mBufOutCmd);
+		if (szBuf < 3)
+		{
+			pSwt->mValidBuf &= ~cBufValidInCmd; // don't answer
+			mStateCmd = StCmdRcvdWait;
+			break;
+		}
+
+		pBuf = pSwt->mBufOutCmd;
+		pBufEnd = pBuf + szBuf;
+
+		// <content ID>...<zero byte><content end>
+		pBuf += 1; // make offset for content ID
+		pBufEnd -= 2; // point to second to last byte
+
+		//procInfLog("Received command: %s", pSwt->mBufInCmd);
+
+		*pBuf = 0; // dInfo!
 
 		if (CMD(dKeyModeDebug))
 		{
@@ -291,10 +311,7 @@ void SystemDebugging::commandInterpret()
 			break;
 		}
 
-		//procInfLog("Received command: %s", pSwt->mBufInCmd);
-
-		*pBuf = 0; // dInfo!
-
+		pCmd = commands;
 		for (size_t i = 0; i < dNumCmds; ++i, ++pCmd)
 		{
 			if (CMD(pCmd->pId))
@@ -316,6 +333,8 @@ void SystemDebugging::commandInterpret()
 
 			pCmd->pFctExec(pArg, pBuf, pBufEnd);
 
+			*pBufEnd = 0;
+
 			mStateCmd = StCmdSendStart;
 			return;
 		}
@@ -327,15 +346,8 @@ void SystemDebugging::commandInterpret()
 	case StCmdSendStart: // write back
 
 		pSwt->mValidBuf |= cBufValidOutCmd;
-		mStateCmd = StCmdSentWait;
-
-		break;
-	case StCmdSentWait:
-
-		if (pSwt->mValidBuf & cBufValidOutCmd)
-			break;
-
 		pSwt->mValidBuf &= ~cBufValidInCmd;
+
 		mStateCmd = StCmdRcvdWait;
 
 		break;
@@ -355,17 +367,28 @@ void SystemDebugging::procTreeSend()
 		return;
 	}
 
+	size_t szBuf = sizeof(pSwt->mBufOutProc);
+	if (szBuf < 3)
+		return;
+
 	if (pSwt->mValidBuf & cBufValidOutProc)
 		return;
+	pSwt->mValidBuf |= cBufValidOutProc;
 
 	mCntDelay = 0;
 
+	char *pBuf = pSwt->mBufOutProc;
+	char *pBufEnd = pBuf + szBuf;
+
+	// <content ID>...<zero byte><content end>
+	pBuf += 1; // make offset for content ID
+	pBufEnd -= 2; // point to second to last byte
+
 	mpTreeRoot->processTreeStr(
-				pSwt->mBufOutProc,
-				pSwt->mBufOutProc + sizeof(pSwt->mBufOutProc) - 1,
+				pBuf, pBufEnd,
 				true, true);
 
-	pSwt->mValidBuf |= cBufValidOutProc;
+	*pBufEnd = 0;
 }
 
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
@@ -433,19 +456,30 @@ void SystemDebugging::entryLogEnqueue(
 	if (severity > levelLog)
 		return;
 
+	size_t szBuf = sizeof(pSwt->mBufOutLog);
+	if (szBuf < 3)
+		return;
+
 	if (pSwt->mValidBuf & cBufValidOutLog)
 	{
 		logOvf = true;
 		return;
 	}
 
-	char *pBufLog = pSwt->mBufOutLog;
-	size_t lenMax = sizeof(pSwt->mBufOutLog) - 1;
+	pSwt->mValidBuf |= cBufValidOutLog;
+
+	char *pBuf = pSwt->mBufOutProc;
+	char *pBufEnd = pBuf + szBuf;
+
+	// <content ID>...<zero byte><content end>
+	pBuf += 1; // make offset for content ID
+	pBufEnd -= 2; // point to second to last byte
+
+	size_t lenMax = pBufEnd - pBuf;
 	size_t lenReq = PMIN(len, lenMax);
 
-	memcpy(pBufLog, msg, lenReq);
-	pBufLog[lenReq] = 0;
+	memcpy(pBuf, msg, lenReq);
 
-	pSwt->mValidBuf |= cBufValidOutLog;
+	*pBufEnd = 0;
 }
 
