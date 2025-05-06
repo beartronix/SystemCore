@@ -31,7 +31,7 @@ However, your coding style is not restricted in any way! Similar to LaTeX, focus
 ## Status
 
 - Mature code created in 2018
-- Almost finished
+- Finished: Release pending. ETA: July 2025
 
 ## Supported Targets
 
