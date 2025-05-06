@@ -154,19 +154,20 @@ bool cmdReg(
 		const char *pDesc,
 		const char *pGroup)
 {
-	if (cSzBufInCmd < 2)
+	if (cSzBufInCmd < 3)
 	{
 		errLog(-1, "err");
 		return false;
 	}
 
 	bool foundPipe = false;
+	bool foundCh = false;
 	bool foundTerm = false;
 	size_t i = 0;
 
 	while (1)
 	{
-		if (i >= cSzBufInCmd - 1)
+		if (i >= cSzBufInCmd - 2)
 			break;
 
 		if (pId[i] == '|')  foundPipe = true;
@@ -175,10 +176,11 @@ bool cmdReg(
 		if (foundTerm || foundPipe)
 			break;
 
+		foundCh = true;
 		++i;
 	}
 
-	if (foundPipe || !foundTerm)
+	if (foundPipe || !foundTerm || !foundCh)
 	{
 		errLog(-1, "err");
 		return false;
