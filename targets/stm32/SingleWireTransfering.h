@@ -101,6 +101,9 @@ private:
 	{
 		mState = 0;
 
+		mBufId[0] = 0;
+		mBufId[1] = 0;
+
 		mBufInCmd[0] = 0;
 		mBufOutProc[0] = 0;
 		mBufOutLog[0] = 0;
@@ -123,6 +126,9 @@ private:
 		mLenTx = 0;
 
 		mState = 0;
+
+		mBufId[0] = 0;
+		mBufId[1] = 0;
 
 		mBufInCmd[0] = 0;
 		mBufOutProc[0] = 0;
