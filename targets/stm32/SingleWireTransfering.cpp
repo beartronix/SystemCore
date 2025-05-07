@@ -104,14 +104,15 @@ void SingleWireTransfering::dataReceived(char *pData, size_t len)
 				*pData == FlowTargetToSched)
 		{
 			mBufId[0] = *pData;
-			mBufId[1] = 0;
-
 			mDataWriteEnabled = 0;
 			continue;
 		}
 
 		if (*pData == IdContentScToTaCmd)
 		{
+			if (mBufId[0] != FlowSchedToTarget)
+				continue;
+
 			mBufId[1] = *pData;
 
 			mIdxBufDataWrite = 0;
@@ -167,7 +168,6 @@ void SingleWireTransfering::logImmediateSend()
 Success SingleWireTransfering::process()
 {
 	Success success;
-	char data;
 
 	switch (mState)
 	{
@@ -187,19 +187,19 @@ Success SingleWireTransfering::process()
 		break;
 	case StFlowControlRcvdWait:
 
-		data = mBufId[0];
-		if (!data)
-			break;
-		mBufId[0] = 0;
-
-		if (data == FlowSchedToTarget)
+		if (mBufId[1] == IdContentScToTaCmd)
+		{
 			mState = StContentIdInRcvdWait;
+			break;
+		}
 
 		if (!mModeDebug)
 			break;
 
-		if (data == FlowTargetToSched)
-			mState = StContentOutSend;
+		if (mBufId[0] != FlowTargetToSched)
+			break;
+
+		mState = StContentOutSend;
 
 		break;
 	case StContentOutSend:
@@ -233,6 +233,7 @@ Success SingleWireTransfering::process()
 			mContentIdOut = IdContentTaToScNone;
 
 		contentOutSend();
+		mBufId[0] = 0;
 
 		if (!mSyncedTransfer)
 		{
@@ -258,19 +259,15 @@ Success SingleWireTransfering::process()
 		break;
 	case StContentIdInRcvdWait:
 
-		data = mBufId[1];
-		if (!data)
-			break;
-		mBufId[1] = 0;
-
-		if ((data != IdContentScToTaCmd) ||
-				(mValidBuf & cBufValidInCmd))
+		if (mValidBuf & cBufValidInCmd)
 		{
 			mState = StFlowControlRcvdWait;
 			break;
 		}
 
+		mBufId[1] = 0;
 		mIdxBufDataRead = 0;
+
 		mState = StCmdRcvdWait;
 
 		break;
