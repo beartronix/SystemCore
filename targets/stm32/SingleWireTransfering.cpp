@@ -190,7 +190,16 @@ Success SingleWireTransfering::process()
 
 		contentOutSend();
 
-		mState = StContentOutSentWait;
+		if (!mSyncedTransfer)
+		{
+			mState = StContentOutSentWait;
+			break;
+		}
+
+		while (bufTxPending);
+		mValidBuf &= ~mValidIdTx;
+
+		mState = StFlowControlRcvdWait;
 
 		break;
 	case StContentOutSentWait:
