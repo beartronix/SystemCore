@@ -134,10 +134,7 @@ void SingleWireTransfering::dataReceived(char *pData, size_t len)
 
 		if (*pData == IdContentEnd ||
 				*pData == IdContentCut)
-		{
 			mDataWriteEnabled = 0;
-			continue;
-		}
 	}
 }
 
