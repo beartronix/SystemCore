@@ -76,13 +76,9 @@ SingleWireTransfering::SingleWireTransfering()
 	mBufId[1] = 0;
 
 	mBufInCmd[0] = 0;
-	mBufInCmd[sizeof(mBufInCmd) - 1] = 0;
 	mBufOutProc[0] = 0;
-	mBufOutProc[sizeof(mBufOutProc) - 1] = 0;
 	mBufOutLog[0] = 0;
-	mBufOutLog[sizeof(mBufOutLog) - 1] = 0;
 	mBufOutCmd[0] = 0;
-	mBufOutCmd[sizeof(mBufOutCmd) - 1] = 0;
 
 }
 
