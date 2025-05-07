@@ -182,6 +182,7 @@ Success SingleWireTransfering::process()
 
 		if (mBufId[1] == IdContentScToTaCmd)
 		{
+			mBufId[1] = 0;
 			mState = StContentIdInRcvdWait;
 			break;
 		}
@@ -191,6 +192,7 @@ Success SingleWireTransfering::process()
 
 		if (mBufId[0] != FlowTargetToSched)
 			break;
+		mBufId[0] = 0;
 
 		mState = StContentOutSend;
 
@@ -226,7 +228,6 @@ Success SingleWireTransfering::process()
 			mContentIdOut = IdContentTaToScNone;
 
 		contentOutSend();
-		mBufId[0] = 0;
 
 		if (!mSyncedTransfer)
 		{
@@ -257,7 +258,6 @@ Success SingleWireTransfering::process()
 			break;
 		}
 
-		mBufId[1] = 0;
 		mIdxBufDataRead = 0;
 
 		mState = StCmdRcvdWait;
