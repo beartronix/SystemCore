@@ -43,7 +43,7 @@ const uint8_t cBufValidOutProc = 1 << 6;
 
 typedef void (*FuncDataSend)(char *pData, size_t len, void *pUser);
 
-const size_t cSzBufInCmd = 64;
+const uint8_t cSzBufInCmd = 64; // max. 255!
 const size_t cSzBufOutProc = 1024;
 const size_t cSzBufOutLog = 256;
 const size_t cSzBufOutCmd = 128;
@@ -90,10 +90,13 @@ private:
 		, mValidBuf(0)
 		, mpSend(NULL)
 		, mpUser(NULL)
+		, mDataWriteEnabled(0)
+		, mIdxBufDataWrite(0)
+		, mIdxBufDataRead(0)
+		, mBufTxPending(0)
 		, mContentIdOut(0)
 		, mValidIdTx(0)
 		, mpDataTx(NULL)
-		, mIdxRx(0)
 		, mLenTx(0)
 	{
 		mState = 0;
@@ -110,10 +113,13 @@ private:
 		mValidBuf = 0;
 		mpSend = NULL;
 		mpUser = NULL;
+		mDataWriteEnabled = 0;
+		mIdxBufDataWrite = 0;
+		mIdxBufDataRead = 0;
+		mBufTxPending = 0;
 		mContentIdOut = 0;
 		mValidIdTx = 0;
 		mpDataTx = NULL;
-		mIdxRx = 0;
 		mLenTx = 0;
 
 		mState = 0;
@@ -136,15 +142,19 @@ private:
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	void contentOutSend();
-	uint8_t byteReceived(char *pData);
+	Success dataInReceive();
 
 	/* member variables */
 	FuncDataSend mpSend;
 	void *mpUser;
+	char mBufId[2];
+	uint8_t mDataWriteEnabled;
+	uint8_t mIdxBufDataWrite;
+	uint8_t mIdxBufDataRead;
+	uint8_t mBufTxPending;
 	char mContentIdOut;
 	uint8_t mValidIdTx;
 	char *mpDataTx;
-	uint8_t mIdxRx;
 	uint16_t mLenTx;
 
 	/* static functions */
