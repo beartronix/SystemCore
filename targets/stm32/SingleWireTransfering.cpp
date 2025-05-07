@@ -326,14 +326,13 @@ Success SingleWireTransfering::dataInReceive()
 			return Pending;
 		}
 
-		if (mBufInCmd[mIdxBufDataRead] != IdContentEnd)
+		if (mBufInCmd[mIdxBufDataRead] == IdContentEnd)
 		{
-			++mIdxBufDataRead;
-			continue;
+			mBufInCmd[mIdxBufDataRead] = 0;
+			break;
 		}
 
-		mBufInCmd[mIdxBufDataRead] = 0;
-		break;
+		++mIdxBufDataRead;
 	}
 
 	return Positive;
