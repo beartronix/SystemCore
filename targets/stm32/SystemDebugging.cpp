@@ -476,6 +476,9 @@ void SystemDebugging::entryLogEnqueue(
 	if (severity > levelLog)
 		return;
 
+	if (!pSwt)
+		return;
+
 	size_t szBuf = sizeof(pSwt->mBufOutLog);
 	if (szBuf < 3)
 		return;
