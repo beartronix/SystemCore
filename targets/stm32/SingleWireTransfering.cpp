@@ -235,8 +235,8 @@ Success SingleWireTransfering::process()
 		}
 
 		while (mBufTxPending);
-		mValidBuf &= ~mValidIdTx;
 
+		mValidBuf &= ~mValidIdTx;
 		mState = StFlowControlRcvdWait;
 
 		break;
@@ -246,7 +246,6 @@ Success SingleWireTransfering::process()
 			break;
 
 		mValidBuf &= ~mValidIdTx;
-
 		mState = StFlowControlRcvdWait;
 
 		break;
