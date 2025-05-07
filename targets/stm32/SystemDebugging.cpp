@@ -232,6 +232,7 @@ Success SystemDebugging::process()
 			return procErrLog(-1, "err");
 
 		pSwt->fctDataSendSet(mpSend, mpUser);
+		pSwt->mSyncedTransfer = mLogImmediateSend;
 
 		start(pSwt);
 
@@ -507,7 +508,7 @@ void SystemDebugging::entryLogEnqueue(
 
 	pBuf[lenReq] = 0;
 
-	if (!mLogImmediateSend)
+	if (!pSwt->mSyncedTransfer)
 		return;
 
 	pSwt->logImmediateSend();
