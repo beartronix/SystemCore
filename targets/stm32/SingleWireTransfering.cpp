@@ -105,6 +105,8 @@ void SingleWireTransfering::dataReceived(char *pData, size_t len)
 		{
 			mBufId[0] = *pData;
 			mBufId[1] = 0;
+
+			mDataWriteEnabled = 0;
 			continue;
 		}
 
