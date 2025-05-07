@@ -104,22 +104,16 @@ void SingleWireTransfering::dataReceived(char *pData, size_t len)
 				*pData == FlowTargetToSched)
 		{
 			mBufId[0] = *pData;
-
 			mBufId[1] = 0;
-			mIdxBufDataWrite = 0;
-
-			mDataWriteEnabled = 0;
-
 			continue;
 		}
 
 		if (*pData == IdContentScToTaCmd)
 		{
 			mBufId[1] = *pData;
+
 			mIdxBufDataWrite = 0;
-
 			mDataWriteEnabled = 1;
-
 			continue;
 		}
 
