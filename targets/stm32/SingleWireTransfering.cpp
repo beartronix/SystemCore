@@ -320,10 +320,10 @@ Success SingleWireTransfering::dataInReceive()
 
 		if (mIdxBufDataRead == mIdxBufDataWrite)
 		{
-			if (mDataWriteEnabled)
-				return Pending;
+			if (!mDataWriteEnabled)
+				return -1; // EOF
 
-			return -1; // EOF
+			return Pending;
 		}
 
 		if (mBufInCmd[mIdxBufDataRead] != IdContentEnd)
@@ -333,7 +333,6 @@ Success SingleWireTransfering::dataInReceive()
 		}
 
 		mBufInCmd[mIdxBufDataRead] = 0;
-
 		break;
 	}
 
