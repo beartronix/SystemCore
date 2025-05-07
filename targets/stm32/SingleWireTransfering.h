@@ -59,6 +59,7 @@ public:
 	}
 
 	uint8_t mModeDebug;
+	bool mSyncedTransfer;
 
 	void fctDataSendSet(FuncDataSend pFct, void *pUser);
 	void dataReceived(char *pData, size_t len);

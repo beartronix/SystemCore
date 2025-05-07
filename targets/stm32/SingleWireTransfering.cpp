@@ -61,6 +61,7 @@ uint8_t SingleWireTransfering::idStarted = 0;
 SingleWireTransfering::SingleWireTransfering()
 	: Processing("SingleWireTransfering")
 	, mModeDebug(0)
+	, mSyncedTransfer(false)
 	, mSendReady(false)
 	, mValidBuf(0)
 	, mpSend(NULL)
