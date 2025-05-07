@@ -270,6 +270,7 @@ Success SingleWireTransfering::process()
 			break;
 		}
 
+		mIdxBufDataRead = 0;
 		mState = StCmdRcvdWait;
 
 		break;
@@ -321,17 +322,13 @@ Success SingleWireTransfering::dataInReceive()
 	{
 		if ((mIdxBufDataRead > mIdxBufDataWrite) ||
 				(mIdxBufDataRead >= sizeof(mBufInCmd) - 1))
-		{
-			mIdxBufDataRead = 0;
 			return -1;
-		}
 
 		if (mIdxBufDataRead == mIdxBufDataWrite)
 		{
 			if (mDataWriteEnabled)
 				return Pending;
 
-			mIdxBufDataRead = 0;
 			return -1; // EOF
 		}
 
@@ -342,7 +339,6 @@ Success SingleWireTransfering::dataInReceive()
 		}
 
 		mBufInCmd[mIdxBufDataRead] = 0;
-		mIdxBufDataRead = 0;
 
 		break;
 	}
