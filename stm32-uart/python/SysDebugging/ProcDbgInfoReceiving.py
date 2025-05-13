@@ -7,6 +7,7 @@ import select
 from threading import Thread, Lock
 from typing import List
 from time import sleep
+import datetime
 
 from signal import signal, SIGINT
 
@@ -16,7 +17,7 @@ pathComPort = '/dev/ttyUSB0'
 if len(args) > 1:
 	pathComPort = args[1]
 
-comPort = serial.Serial(pathComPort, 38400, timeout=1)
+comPort = serial.Serial(pathComPort, 38400, timeout=0.1)
 comPort.reset_input_buffer()
 
 
@@ -75,23 +76,34 @@ servers = {
 	ID_LOG  : Srv(3031),
 }
 
+comPort.reset_input_buffer()
+
+data = b''
 while True:
 	try:
-		msgId = comPort.read(1).decode()
-		data = b''
+		data += comPort.readall()
+
+		if not data:
+			continue
+
+		msgId = data[0].to_bytes().decode()
+
+		msg = b''
+
 		if msgId == ID_LOG:
-			data = b'\033[37m' + comPort.read_until(b'\n')
+			msgEnd = data.find(b'\r\n')+2
 		elif msgId == ID_TREE:
-			data = b'\033\143' + comPort.read_until(b'\r\n\r\n')
+			msgEnd = data.find(b'\r\n\r\n')+4
+			msg = b'\033\143'
 		else:
-			# print("Got CRAP")
-			comPort.reset_input_buffer()
+			data = b''
+			continue
 
+		msg += b'\033[37m' + data[1:msgEnd]
+		data = data[msgEnd:]
 
-		if data:
-			# print(data)
-			servers[msgId].send(data)
-		# print(data)
+		servers[msgId].send(msg)
+
 	except KeyboardInterrupt as k:
 		for srv in servers.values():
 			print(f"Shutdown server on port {srv.thr.name}")
@@ -99,7 +111,8 @@ while True:
 			srv.thr.join()
 		sys.exit(1)
 	except Exception as exc:
-		print(f"EXCEPTION (id {msgId}): {exc}")
+		print(f"{datetime.datetime.now().strftime("%H:%M:%S")} EXCEPTION (id {msgId}): {exc}")
+		data = b''
 		# sleep(0.001)
 
 	continue

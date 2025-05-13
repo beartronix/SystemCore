@@ -56,6 +56,7 @@ SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 {
 	mState = StCmdRcvdWait;
 
+	entryLogCreateSet(SystemDebugging::entryLogCreate);
 }
 
 
@@ -101,8 +102,6 @@ Success SystemDebugging::initialize()
 
 	if (!mpTreeRoot)
 		return procErrLog(0, -1, "tree root not set");
-
-	entryLogCreateSet(SystemDebugging::entryLogCreate);
 
 	return Positive;
 }
@@ -216,7 +215,8 @@ void SystemDebugging::procTreeSend()
 
 	mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
 
-	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n\r\n", pEnv->buffOutProc);
+	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n", pEnv->buffOutProc);
+	// add another \r\n to the existing so we can parse multiple lines until \r\n\r\n on the receiver side
 }
 
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)
