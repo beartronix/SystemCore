@@ -215,8 +215,10 @@ void SystemDebugging::procTreeSend()
 
 	mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
 
+#if !SYSTEM_DEBUGGING_LOG_BIN_TOUCH
 	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n", pEnv->buffOutProc);
 	// add another \r\n to the existing so we can parse multiple lines until \r\n\r\n on the receiver side
+#endif
 }
 
 void SystemDebugging::processInfo(char *pBuf, char *pBufEnd)

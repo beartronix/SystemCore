@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import serial
+import struct
 import sys
 import socket
 import select
@@ -17,12 +18,13 @@ pathComPort = '/dev/ttyUSB0'
 if len(args) > 1:
 	pathComPort = args[1]
 
-comPort = serial.Serial(pathComPort, 38400, timeout=0.1)
+comPort = serial.Serial(pathComPort, 38400, timeout=0.2)
 comPort.reset_input_buffer()
 
 
 ID_TREE = 'T'
 ID_LOG  = 'L'
+ID_BIN  = 'B'
 
 class Srv:
 	def __init__(self, port):
@@ -74,6 +76,7 @@ class Srv:
 servers = {
 	ID_TREE : Srv(3030),
 	ID_LOG  : Srv(3031),
+	ID_BIN  : Srv(3032)
 }
 
 comPort.reset_input_buffer()
@@ -81,25 +84,34 @@ comPort.reset_input_buffer()
 data = b''
 while True:
 	try:
+		# data += comPort.read(2048) # somehow, this doesn't work for tree, only for binary and log
 		data += comPort.readall()
 
 		if not data:
 			continue
 
 		msgId = data[0].to_bytes().decode()
-
 		msg = b''
+
 
 		if msgId == ID_LOG:
 			msgEnd = data.find(b'\r\n')+2
+			msg = b'\033[37m' + data[1:msgEnd]
+
 		elif msgId == ID_TREE:
 			msgEnd = data.find(b'\r\n\r\n')+4
-			msg = b'\033\143'
+			msg = b'\033\143\033[37m' + data[1:msgEnd]
+			# print(f"Got Tree: {msg}")
+
+		elif msgId == ID_BIN:
+			len = struct.unpack('h', data[1:3])[0]
+			msgEnd = 3+len
+			msg = data[3:msgEnd]
+			# print(f"Got {len} Bytes: {msg}")
 		else:
 			data = b''
 			continue
 
-		msg += b'\033[37m' + data[1:msgEnd]
 		data = data[msgEnd:]
 
 		servers[msgId].send(msg)
