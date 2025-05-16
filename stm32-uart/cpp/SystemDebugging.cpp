@@ -100,6 +100,9 @@ Success SystemDebugging::initialize()
 {
 	pEnv = new dNoThrow Environment;
 
+	pEnv->buffOutProc = new dNoThrow char[SIZE_BUF_TREE];
+	pEnv->buffOutLog = new dNoThrow char[SIZE_BUF_LOG];
+
 	if (!mpTreeRoot)
 		return procErrLog(0, -1, "tree root not set");
 
@@ -213,8 +216,8 @@ void SystemDebugging::procTreeSend()
 	if (!pEnv->debugMode)
 		return; // minimize CPU load in production
 
-	size_t procTreeLen = mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
-	pEnv->buffOutProc[PMIN(procTreeLen, sizeof(pEnv->buffOutProc)-1)] = 0;
+	size_t procTreeLen = mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + SIZE_BUF_TREE, true, true);
+	pEnv->buffOutProc[PMIN(procTreeLen, SIZE_BUF_TREE-1)] = 0;
 
 #if !SYSTEM_DEBUGGING_LOG_BIN_TOUCH
 	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n\r\n", pEnv->buffOutProc);
