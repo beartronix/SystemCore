@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import traceback
 import serial
 import struct
 import sys
@@ -84,8 +85,8 @@ comPort.reset_input_buffer()
 data = b''
 while True:
 	try:
-		# data += comPort.read(2048) # somehow, this doesn't work for tree, only for binary and log
-		data += comPort.readall()
+		data += comPort.read(2048) # somehow, this doesn't work for tree, only for binary and log
+		# data += comPort.readall()
 
 		if not data:
 			continue
@@ -95,17 +96,20 @@ while True:
 
 
 		if msgId == ID_LOG:
-			msgEnd = data.find(b'\r\n')+2
-			msg = b'\033[37m' + data[1:msgEnd]
+			msgEnd = data.find('\r\n'.encode())
+			if msgEnd == -1:
+				continue
+			msg = b'\033[37m' + data[1:msgEnd+2]
 
 		elif msgId == ID_TREE:
-			msgEnd = data.find(b'\r\n\r\n')+4
-			msg = b'\033\143\033[37m' + data[1:msgEnd]
-			# print(f"Got Tree: {msg}")
+			msgEnd = data.find('\r\n\r\n'.encode())
+			if msgEnd == -1:
+				continue
+			msg = b'\033\143\033[37m' + data[1:msgEnd+4]
 
 		elif msgId == ID_BIN:
-			len = struct.unpack('h', data[1:3])[0]
-			msgEnd = 3+len
+			size = struct.unpack('h', data[1:3])[0]
+			msgEnd = 3+size
 			msg = data[3:msgEnd]
 			# print(f"Got {len} Bytes: {msg}")
 		else:
@@ -113,6 +117,9 @@ while True:
 			continue
 
 		data = data[msgEnd:]
+
+		while len(data) and ((data[0].to_bytes() == '\r'.encode()) or data[0].to_bytes() == '\n'.encode()):
+			data = data[1:]
 
 		servers[msgId].send(msg)
 
@@ -123,15 +130,6 @@ while True:
 			srv.thr.join()
 		sys.exit(1)
 	except Exception as exc:
-		print(f"{datetime.datetime.now().strftime("%H:%M:%S")} EXCEPTION (id {msgId}): {exc}")
+		print(f"{datetime.datetime.now().strftime("%H:%M:%S")} EXCEPTION (id {msgId}): {traceback.format_exc()}")
 		data = b''
 		# sleep(0.001)
-
-	continue
-	if data[0] == 'T': # Tree
-		pass
-	elif data[0] == 'L': # Log
-		pass
-	else:
-		print(f"############### ERROR DATA: {data}")
-

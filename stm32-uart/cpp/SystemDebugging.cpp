@@ -213,11 +213,12 @@ void SystemDebugging::procTreeSend()
 	if (!pEnv->debugMode)
 		return; // minimize CPU load in production
 
-	mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
+	size_t procTreeLen = mpTreeRoot->processTreeStr(pEnv->buffOutProc, pEnv->buffOutProc + sizeof(pEnv->buffOutProc), true, true);
+	pEnv->buffOutProc[PMIN(procTreeLen, sizeof(pEnv->buffOutProc)-1)] = 0;
 
 #if !SYSTEM_DEBUGGING_LOG_BIN_TOUCH
-	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n", pEnv->buffOutProc);
-	// add another \r\n to the existing so we can parse multiple lines until \r\n\r\n on the receiver side
+	fprintf(stdout, PROC_TREE_PREFIX "\033[2J\033[H%s\r\n\r\n", pEnv->buffOutProc);
+	// add another 2 \r\n to the existing so we can parse multiple lines until \r\n\r\n on the receiver side
 #endif
 }
 
