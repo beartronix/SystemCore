@@ -59,7 +59,7 @@ uint8_t SingleWireTransfering::buffTxPending = 0;
 #define dGenProcStateEnum(s) s,
 dProcessStateEnum(ProcState);
 
-#if 1
+#if 0
 #define dGenProcStateString(s) #s,
 dProcessStateStr(ProcState);
 #endif
@@ -105,7 +105,7 @@ Success SingleWireTransfering::initialize()
 
 Success SingleWireTransfering::process()
 {
-	uint8_t data;
+//	uint8_t data;
 
 	switch (mState)
 	{

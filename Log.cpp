@@ -27,6 +27,7 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 */
+#include "Processing.h"
 
 #include <cinttypes>
 #if CONFIG_PROC_HAVE_CHRONO
