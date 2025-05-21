@@ -148,13 +148,22 @@ void SingleWireTransfering::logImmediateSend()
 		return;
 	}
 
+	// unsolicited
+	char idFlow = FlowTargetToSched;
+
+	mBufTxPending = 1;
+	mpSend(&idFlow, sizeof(idFlow), mpUser);
+	while (mBufTxPending);
+
+	// content
 	mContentIdOut = IdContentTaToScLog;
 	mpDataTx = mBufOutLog;
 	mValidIdTx = cBufValidOutLog;
 
 	contentOutSend();
-
 	while (mBufTxPending);
+
+	// clear valid flag
 	mValidBuf &= ~cBufValidOutLog;
 }
 
