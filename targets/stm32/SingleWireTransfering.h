@@ -98,6 +98,7 @@ private:
 		, mValidIdTx(0)
 		, mpDataTx(NULL)
 		, mLenTx(0)
+		, mStateRcv(0)
 	{
 		mState = 0;
 
@@ -124,6 +125,7 @@ private:
 		mValidIdTx = 0;
 		mpDataTx = NULL;
 		mLenTx = 0;
+		mStateRcv = 0;
 
 		mState = 0;
 
@@ -158,7 +160,7 @@ private:
 	uint8_t mDataWriteEnabled;
 	uint8_t mIdxBufDataWrite;
 	uint8_t mIdxBufDataRead;
-	uint8_t mBufTxPending;
+	volatile uint8_t mBufTxPending;
 	char mContentIdOut;
 	uint8_t mValidIdTx;
 	char *mpDataTx;
