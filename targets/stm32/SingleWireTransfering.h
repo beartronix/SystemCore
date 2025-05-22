@@ -147,8 +147,9 @@ private:
 	Success process();
 	void processInfo(char *pBuf, char *pBufEnd);
 
-	void contentOutSend();
+	void byteProcess(uint8_t ch);
 	Success dataInReceive();
+	void contentOutSend();
 
 	/* member variables */
 	FuncDataSend mpSend;
@@ -162,6 +163,7 @@ private:
 	uint8_t mValidIdTx;
 	char *mpDataTx;
 	uint16_t mLenTx;
+	uint8_t mStateRcv;
 
 	/* static functions */
 

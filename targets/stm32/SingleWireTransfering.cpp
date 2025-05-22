@@ -38,6 +38,7 @@
 		gen(StFlowControlRcvdWait) \
 		gen(StContentOutSend) \
 		gen(StContentOutSentWait) \
+		gen(StContentOutSent) \
 		gen(StContentIdInRcvdWait) \
 		gen(StCmdRcvdWait) \
 
@@ -47,6 +48,19 @@ dProcessStateEnum(ProcState);
 #if 0
 #define dGenProcStateString(s) #s,
 dProcessStateStr(ProcState);
+#endif
+
+#define dForEach_RcvState(gen) \
+		gen(StRcvStart) \
+		gen(StRcvContentId) \
+		gen(StRcvContentData) \
+
+#define dGenRcvStateEnum(s) s,
+dProcessStateEnum(RcvState);
+
+#if 0
+#define dGenRcvStateString(s) #s,
+dProcessStateStr(RcvState);
 #endif
 
 using namespace std;
@@ -69,6 +83,7 @@ SingleWireTransfering::SingleWireTransfering()
 	, mValidIdTx(0)
 	, mpDataTx(NULL)
 	, mLenTx(0)
+	, mStateRcv(StRcvStart)
 {
 	mState = StStart;
 
@@ -95,43 +110,7 @@ void SingleWireTransfering::dataReceived(char *pData, size_t len)
 	size_t i = 0;
 
 	for (; i < len; ++i, ++pData)
-	{
-		if (*pData == FlowSchedToTarget ||
-				*pData == FlowTargetToSched)
-		{
-			mBufId[0] = *pData;
-			mDataWriteEnabled = 0;
-			continue;
-		}
-
-		if (*pData == IdContentScToTaCmd)
-		{
-			if (mBufId[0] != FlowSchedToTarget)
-				continue;
-
-			mBufId[1] = *pData;
-
-			mIdxBufDataWrite = 0;
-			mDataWriteEnabled = 1;
-			continue;
-		}
-
-		if (!mDataWriteEnabled)
-			continue; // process entire byte stream
-
-		if (mIdxBufDataWrite >= sizeof(mBufInCmd) - 1)
-		{
-			mDataWriteEnabled = 0;
-			continue;
-		}
-
-		mBufInCmd[mIdxBufDataWrite] = *pData;
-		++mIdxBufDataWrite;
-
-		if (*pData == IdContentEnd ||
-				*pData == IdContentCut)
-			mDataWriteEnabled = 0;
-	}
+		byteProcess(*pData);
 }
 
 void SingleWireTransfering::dataSent()
@@ -170,6 +149,7 @@ void SingleWireTransfering::logImmediateSend()
 Success SingleWireTransfering::process()
 {
 	Success success;
+	bool cmdPending;
 
 	switch (mState)
 	{
@@ -191,7 +171,6 @@ Success SingleWireTransfering::process()
 
 		if (mBufId[1] == IdContentScToTaCmd)
 		{
-			mBufId[1] = 0;
 			mState = StContentIdInRcvdWait;
 			break;
 		}
@@ -208,6 +187,8 @@ Success SingleWireTransfering::process()
 		break;
 	case StContentOutSend:
 
+		cmdPending = mValidBuf & cBufValidInCmd;
+
 		if (mValidBuf & cBufValidOutCmd) // highest prio
 		{
 			mContentIdOut = IdContentTaToScCmd;
@@ -215,14 +196,14 @@ Success SingleWireTransfering::process()
 			mpDataTx = mBufOutCmd;
 			mValidIdTx = cBufValidOutCmd;
 		}
-		else if (mValidBuf & cBufValidOutLog)
+		else if (mValidBuf & cBufValidOutLog && !cmdPending)
 		{
 			mContentIdOut = IdContentTaToScLog;
 			mLenTx = sizeof(mBufOutLog);
 			mpDataTx = mBufOutLog;
 			mValidIdTx = cBufValidOutLog;
 		}
-		else if (mValidBuf & cBufValidOutProc) // lowest prio
+		else if (mValidBuf & cBufValidOutProc && !cmdPending) // lowest prio
 		{
 			mContentIdOut = IdContentTaToScProc;
 			mLenTx = sizeof(mBufOutProc);
@@ -246,8 +227,7 @@ Success SingleWireTransfering::process()
 
 		while (mBufTxPending);
 
-		mValidBuf &= ~mValidIdTx;
-		mState = StFlowControlRcvdWait;
+		mState = StContentOutSent;
 
 		break;
 	case StContentOutSentWait:
@@ -255,7 +235,16 @@ Success SingleWireTransfering::process()
 		if (mBufTxPending)
 			break;
 
+		mState = StContentOutSent;
+
+		break;
+	case StContentOutSent:
+
 		mValidBuf &= ~mValidIdTx;
+
+		if (mValidIdTx == cBufValidOutCmd)
+			mBufId[1] = 0;
+
 		mState = StFlowControlRcvdWait;
 
 		break;
@@ -278,8 +267,15 @@ Success SingleWireTransfering::process()
 		if (success == Pending)
 			break;
 
-		if (success == Positive)
-			mValidBuf |= cBufValidInCmd;
+		if (success != Positive)
+		{
+			mBufId[1] = 0;
+
+			mState = StFlowControlRcvdWait;
+			break;
+		}
+
+		mValidBuf |= cBufValidInCmd;
 
 		mState = StFlowControlRcvdWait;
 
@@ -291,27 +287,72 @@ Success SingleWireTransfering::process()
 	return Pending;
 }
 
-void SingleWireTransfering::contentOutSend()
+void SingleWireTransfering::byteProcess(uint8_t ch)
 {
-	mpDataTx[0] = mContentIdOut;
-
-	if (mContentIdOut != IdContentTaToScNone)
+	switch (mStateRcv)
 	{
-		// protect strlen(). Zero byte and 'content end' identifier byte must be stored at least
-		mLenTx -= 2;
-		mpDataTx[mLenTx] = 0;
+	case StRcvStart:
 
-		mLenTx = strlen(mpDataTx);
+		if (ch == FlowTargetToSched)
+		{
+			mBufId[0] = ch;
+			break;
+		}
 
-		mpDataTx[mLenTx] = 0;
-		++mLenTx;
+		if (ch == FlowSchedToTarget)
+		{
+			mStateRcv = StRcvContentId;
+			break;
+		}
 
-		mpDataTx[mLenTx] = IdContentEnd;
-		++mLenTx;
+		break;
+	case StRcvContentId:
+
+		if (ch != IdContentScToTaCmd)
+		{
+			mStateRcv = StRcvStart;
+			break;
+		}
+
+		if (mBufId[1]) // cmd not processed yet
+		{
+			mStateRcv = StRcvStart;
+			break;
+		}
+
+		mBufId[1] = ch;
+
+		mIdxBufDataWrite = 0;
+		mDataWriteEnabled = 1;
+
+		mStateRcv = StRcvContentData;
+
+		break;
+	case StRcvContentData:
+
+		mBufInCmd[mIdxBufDataWrite] = ch;
+		++mIdxBufDataWrite;
+
+		if (ch == IdContentEnd || ch == IdContentCut)
+		{
+			mDataWriteEnabled = 0;
+
+			mStateRcv = StRcvStart;
+			break;
+		}
+
+		if (mIdxBufDataWrite >= sizeof(mBufInCmd) - 1)
+		{
+			mDataWriteEnabled = 0;
+
+			mStateRcv = StRcvStart;
+			break;
+		}
+
+		break;
+	default:
+		break;
 	}
-
-	mBufTxPending = 1;
-	mpSend(mpDataTx, mLenTx, mpUser);
 }
 
 Success SingleWireTransfering::dataInReceive()
@@ -340,6 +381,29 @@ Success SingleWireTransfering::dataInReceive()
 	}
 
 	return Positive;
+}
+
+void SingleWireTransfering::contentOutSend()
+{
+	mpDataTx[0] = mContentIdOut;
+
+	if (mContentIdOut != IdContentTaToScNone)
+	{
+		// protect strlen(). Zero byte and 'content end' identifier byte must be stored at least
+		mLenTx -= 2;
+		mpDataTx[mLenTx] = 0;
+
+		mLenTx = strlen(mpDataTx);
+
+		mpDataTx[mLenTx] = 0;
+		++mLenTx;
+
+		mpDataTx[mLenTx] = IdContentEnd;
+		++mLenTx;
+	}
+
+	mBufTxPending = 1;
+	mpSend(mpDataTx, mLenTx, mpUser);
 }
 
 void SingleWireTransfering::processInfo(char *pBuf, char *pBufEnd)
