@@ -89,7 +89,7 @@ const char *red = "\033[0;31m";
 const char *yellow = "\033[0;33m";
 const char *reset = "\033[37m";
 
-const size_t cLogEntryBufferSize = 200;
+const size_t cLogEntryBufferSize = 230;
 static int levelLog = 3;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxPrint;
