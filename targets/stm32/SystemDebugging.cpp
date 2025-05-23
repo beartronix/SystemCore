@@ -356,6 +356,8 @@ void SystemDebugging::commandInterpret()
 		break;
 	case StCmdSendStart: // write back
 
+		pSwt->mBufInCmd[0] = 0;
+
 		pSwt->mValidBuf |= cBufValidOutCmd;
 		pSwt->mValidBuf &= ~cBufValidInCmd;
 
