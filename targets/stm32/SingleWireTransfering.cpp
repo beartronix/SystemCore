@@ -309,9 +309,7 @@ void SingleWireTransfering::byteProcess(uint8_t ch)
 	case StRcvContentData:
 
 		mBufInCmd[mIdxBufDataWrite] = ch;
-
-		if (ch != IdContentCut)
-			++mIdxBufDataWrite;
+		++mIdxBufDataWrite;
 
 		if (ch == IdContentEnd)
 		{
