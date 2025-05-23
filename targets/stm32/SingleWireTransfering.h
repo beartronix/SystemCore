@@ -90,9 +90,7 @@ private:
 		, mValidBuf(0)
 		, mpSend(NULL)
 		, mpUser(NULL)
-		, mDataWriteEnabled(0)
 		, mIdxBufDataWrite(0)
-		, mIdxBufDataRead(0)
 		, mBufTxPending(0)
 		, mContentIdOut(0)
 		, mValidIdTx(0)
@@ -117,9 +115,7 @@ private:
 		mValidBuf = 0;
 		mpSend = NULL;
 		mpUser = NULL;
-		mDataWriteEnabled = 0;
 		mIdxBufDataWrite = 0;
-		mIdxBufDataRead = 0;
 		mBufTxPending = 0;
 		mContentIdOut = 0;
 		mValidIdTx = 0;
@@ -150,16 +146,14 @@ private:
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	void byteProcess(uint8_t ch);
-	Success dataInReceive();
+	bool dataInTerminate();
 	void contentOutSend();
 
 	/* member variables */
 	FuncDataSend mpSend;
 	void *mpUser;
 	char mBufId[2];
-	uint8_t mDataWriteEnabled;
 	uint8_t mIdxBufDataWrite;
-	uint8_t mIdxBufDataRead;
 	volatile uint8_t mBufTxPending;
 	char mContentIdOut;
 	uint8_t mValidIdTx;
