@@ -131,6 +131,8 @@ Success EspWifiConnecting::process()
 			break;
 		mStartMs = curTimeMs;
 
+		infoWifiUpdate();
+
 		//procDbgLog("WiFi disconnected");
 
 		break;
@@ -262,6 +264,24 @@ Success EspWifiConnecting::wifiConfigure()
 		procWrnLog("unexpected event");
 
 	return Positive;
+}
+
+void EspWifiConnecting::infoWifiUpdate()
+{
+	wifi_ap_record_t ap_info;
+	esp_err_t res;
+
+	res = esp_wifi_sta_get_ap_info(&ap_info);
+	if (res != ESP_OK)
+	{
+		procWrnLog("could not get AP info: %s (0x%04x)",
+							esp_err_to_name(res), res);
+		return;
+	}
+
+	mRssi = ap_info.rssi;
+
+	//procDbgLog("RSSI: %ddBm", mRssi);
 }
 
 void EspWifiConnecting::processInfo(char *pBuf, char *pBufEnd)

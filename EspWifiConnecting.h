@@ -100,6 +100,7 @@ private:
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	Success wifiConfigure();
+	void infoWifiUpdate();
 
 	/* member variables */
 	const char *mpHostname;
