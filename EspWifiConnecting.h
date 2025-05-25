@@ -115,6 +115,7 @@ private:
 							int32_t event_id, void *event_data);
 	static void ipChanged(void *arg, esp_event_base_t event_base,
 							int32_t event_id, void *event_data);
+	static void ipv6Print(esp_netif_t *pNetIf);
 	static uint32_t millis();
 
 	/* static variables */

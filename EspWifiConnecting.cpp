@@ -30,6 +30,9 @@
 
 #include <chrono>
 #include <esp_err.h>
+#include <esp_netif.h>
+#include <lwip/ip6_addr.h>
+#include <lwip/inet.h>
 
 #include "EspWifiConnecting.h"
 
@@ -77,6 +80,7 @@ Success EspWifiConnecting::process()
 	uint32_t curTimeMs = millis();
 	uint32_t diffMs = curTimeMs - mStartMs;
 	Success success;
+	esp_err_t res;
 #if 0
 	dStateTrace;
 #endif
@@ -111,6 +115,11 @@ Success EspWifiConnecting::process()
 
 		procDbgLog("network interface is %s",
 				esp_netif_is_netif_up(mpNetIf) ? "up" : "down");
+
+		res = esp_netif_create_ip6_linklocal(mpNetIf);
+		if (res != ESP_OK)
+			procWrnLog("could not create IPv6 linklocal: %s (0x%04x)",
+								esp_err_to_name(res), res);
 
 		mStartMs = curTimeMs;
 		mState = StMain;
@@ -183,6 +192,15 @@ Success EspWifiConnecting::wifiConfigure()
 
 	res = esp_event_handler_instance_register(IP_EVENT,
 				IP_EVENT_STA_GOT_IP,
+				&ipChanged,
+				this,
+				&hEventGotIp);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not register event handler: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	res = esp_event_handler_instance_register(IP_EVENT,
+				IP_EVENT_GOT_IP6,
 				&ipChanged,
 				this,
 				&hEventGotIp);
@@ -304,20 +322,53 @@ void EspWifiConnecting::ipChanged(void *arg, esp_event_base_t event_base,
 		return;
 	}
 
+	EspWifiConnecting *pWifi = (EspWifiConnecting *)arg;
+
+	if (event_id == IP_EVENT_GOT_IP6)
+	{
+		dbgLog("IPv6");
+		ipv6Print(pWifi->mpNetIf);
+		return;
+	}
+
 	if (event_id != IP_EVENT_STA_GOT_IP)
 		return;
 
 	ip_event_got_ip_t *pEvent = (ip_event_got_ip_t *)event_data;
-	dbgLog("IP:      " IPSTR, IP2STR(&pEvent->ip_info.ip));
-	dbgLog("Gateway: " IPSTR, IP2STR(&pEvent->ip_info.gw));
-	dbgLog("Netmask: " IPSTR, IP2STR(&pEvent->ip_info.netmask));
-
-	EspWifiConnecting *pWifi = (EspWifiConnecting *)arg;
+	dbgLog("IPv4      " IPSTR, IP2STR(&pEvent->ip_info.ip));
+	dbgLog("Gateway   " IPSTR, IP2STR(&pEvent->ip_info.gw));
+	dbgLog("Netmask   " IPSTR, IP2STR(&pEvent->ip_info.netmask));
 
 	xEventGroupSetBits(pWifi->mEventGroupWifi, WIFI_CONNECTED_BIT);
 
 	pWifi->mCntRetryConn = 0;
 	connected = true;
+}
+
+void EspWifiConnecting::ipv6Print(esp_netif_t *pNetIf)
+{
+#if 0
+	const esp_ip6_addr_t *pIp6;
+	const char *str;
+
+	for (int i = 0; i < CONFIG_LWIP_IPV6_NUM_ADDRESSES; ++i)
+	{
+		pIp6 = esp_netif_get_ip6_addr(netif, i);
+
+		if (!pIp6 || pIp6->addr.state != IP6_ADDR_VALID)
+			continue;
+
+		str = ip6addr_ntoa(&pIp6->addr);
+
+		dbgLog("IPv6[%d] (%s): %s", i,
+					pIp6->type == ESP_IP6_ADDR_IS_LINK_LOCAL ? "link-local" :
+					pIp6->type == ESP_IP6_ADDR_IS_GLOBAL     ? "global"     :
+					pIp6->type == ESP_IP6_ADDR_IS_SITE_LOCAL ? "site-local" : "other",
+					str);
+	}
+#else
+	(void)pNetIf;
+#endif
 }
 
 uint32_t EspWifiConnecting::millis()
