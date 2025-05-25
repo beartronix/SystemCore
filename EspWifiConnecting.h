@@ -31,7 +31,7 @@
 #ifndef ESP_WIFI_CONNECTING_H
 #define ESP_WIFI_CONNECTING_H
 
-#include <esp_wifi.h>
+#include <esp_event.h>
 
 #include "Processing.h"
 
@@ -64,24 +64,25 @@ private:
 	EspWifiConnecting();
 	EspWifiConnecting(const EspWifiConnecting &)
 		: Processing("")
-		, mStartMs(0), mpNetInterface(NULL), mpHostname(""), mpSsid(NULL)
-		, mpPassword(NULL), mWifiConnected(false), mRssi(0)
+		, mpHostname(""), mpSsid(NULL), mpPassword(NULL)
+		, mStartMs(0), mEventGroupWifi()
+		, mCntRetryConn(0), mRssi(0)
 	{
 		mState = 0;
-		mIpInfo.ip.addr = 0;
 	}
 	EspWifiConnecting &operator=(const EspWifiConnecting &)
 	{
-		mStartMs = 0;
-		mpNetInterface = NULL;
 		mpHostname = "";
 		mpSsid = NULL;
 		mpPassword = NULL;
-		mWifiConnected = false;
+
+		mStartMs = 0;
+		mEventGroupWifi = {};
+
+		mCntRetryConn = 0;
 		mRssi = 0;
 
 		mState = 0;
-		mIpInfo.ip.addr = 0;
 
 		return *this;
 	}
@@ -95,24 +96,26 @@ private:
 	Success process();
 	void processInfo(char *pBuf, char *pBufEnd);
 
-	void infoWifiUpdate();
 	Success wifiConfigure();
 
 	/* member variables */
-	uint32_t mStartMs;
-	esp_netif_t *mpNetInterface;
-	esp_netif_ip_info_t mIpInfo;
 	const char *mpHostname;
 	const char *mpSsid;
 	const char *mpPassword;
-	bool mWifiConnected;
+	uint32_t mStartMs;
+	EventGroupHandle_t mEventGroupWifi;
+	uint8_t mCntRetryConn;
 	int8_t mRssi;
 
 	/* static functions */
+	static void wifiChanged(void *arg, esp_event_base_t event_base,
+							int32_t event_id, void *event_data);
+	static void ipChanged(void *arg, esp_event_base_t event_base,
+							int32_t event_id, void *event_data);
 	static uint32_t millis();
 
 	/* static variables */
-	static bool mConnected;
+	static bool connected;
 
 	/* constants */
 
