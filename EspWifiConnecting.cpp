@@ -298,7 +298,9 @@ void EspWifiConnecting::ipChanged(void *arg, esp_event_base_t event_base,
 		return;
 
 	ip_event_got_ip_t *pEvent = (ip_event_got_ip_t *)event_data;
-	dbgLog("got IP: " IPSTR, IP2STR(&pEvent->ip_info.ip));
+	dbgLog("IP:      " IPSTR, IP2STR(&pEvent->ip_info.ip));
+	dbgLog("Gateway: " IPSTR, IP2STR(&pEvent->ip_info.gw));
+	dbgLog("Netmask: " IPSTR, IP2STR(&pEvent->ip_info.netmask));
 
 	EspWifiConnecting *pWifi = (EspWifiConnecting *)arg;
 
