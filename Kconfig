@@ -3,7 +3,7 @@ menu "DSP-Crowd Electronics GmbH"
 
 config PROC_HAVE_LOG
 	bool "Enable process log system"
-	default "n"
+	default "y"
 	help
 		Log file available for target
 
