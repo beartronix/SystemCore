@@ -45,12 +45,13 @@
 #endif
 
 #include <inttypes.h>
-#if CONFIG_PROC_LOG_HAVE_CHRONO
-#include <chrono>
-#endif
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#if CONFIG_PROC_LOG_HAVE_CHRONO
+#include <chrono>
+#include <time.h>
+#endif
 #if CONFIG_PROC_HAVE_DRIVERS
 #include <mutex>
 #endif
