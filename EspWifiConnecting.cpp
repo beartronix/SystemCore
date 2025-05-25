@@ -30,7 +30,6 @@
 
 #include <chrono>
 #include <esp_err.h>
-#include <esp_wifi.h>
 
 #include "EspWifiConnecting.h"
 
@@ -62,6 +61,7 @@ EspWifiConnecting::EspWifiConnecting()
 	, mpHostname("dspc-esp")
 	, mpSsid(NULL)
 	, mpPassword(NULL)
+	, mpNetIf(NULL)
 	, mStartMs(0)
 	, mEventGroupWifi()
 	, mCntRetryConn(0)
@@ -140,7 +140,6 @@ Success EspWifiConnecting::wifiConfigure()
 	esp_event_handler_instance_t hEventAnyId;
 	esp_event_handler_instance_t hEventGotIp;
 	wifi_init_config_t cfgInitWifi;
-	esp_netif_t *pNetIf;
 	esp_err_t res;
 
 	mEventGroupWifi = xEventGroupCreate();
@@ -155,11 +154,11 @@ Success EspWifiConnecting::wifiConfigure()
 		return procErrLog(-1, "could not create event loop: %s (0x%04x)",
 							esp_err_to_name(res), res);
 
-	pNetIf = esp_netif_create_default_wifi_sta();
-	if (!pNetIf)
+	mpNetIf = esp_netif_create_default_wifi_sta();
+	if (!mpNetIf)
 		return procErrLog(-1, "could not create default network interface");
 
-	res = esp_netif_set_hostname(pNetIf, mpHostname);
+	res = esp_netif_set_hostname(mpNetIf, mpHostname);
 	if (res != ESP_OK)
 		return procErrLog(-1, "could not set hostname: %s (0x%04x)",
 							esp_err_to_name(res), res);
