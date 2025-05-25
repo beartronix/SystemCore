@@ -109,6 +109,9 @@ Success EspWifiConnecting::process()
 
 		procDbgLog("WiFi connected");
 
+		procDbgLog("network interface is %s",
+				esp_netif_is_netif_up(mpNetIf) ? "up" : "down");
+
 		mStartMs = curTimeMs;
 		mState = StMain;
 
