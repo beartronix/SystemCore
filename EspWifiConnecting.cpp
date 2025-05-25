@@ -140,6 +140,7 @@ Success EspWifiConnecting::wifiConfigure()
 	esp_event_handler_instance_t hEventAnyId;
 	esp_event_handler_instance_t hEventGotIp;
 	wifi_init_config_t cfgInitWifi;
+	esp_netif_t *pNetIf;
 	esp_err_t res;
 
 	mEventGroupWifi = xEventGroupCreate();
@@ -154,7 +155,14 @@ Success EspWifiConnecting::wifiConfigure()
 		return procErrLog(-1, "could not create event loop: %s (0x%04x)",
 							esp_err_to_name(res), res);
 
-	esp_netif_create_default_wifi_sta();
+	pNetIf = esp_netif_create_default_wifi_sta();
+	if (!pNetIf)
+		return procErrLog(-1, "could not create default network interface");
+
+	res = esp_netif_set_hostname(pNetIf, mpHostname);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not set hostname: %s (0x%04x)",
+							esp_err_to_name(res), res);
 
 	cfgInitWifi = WIFI_INIT_CONFIG_DEFAULT();
 	res = esp_wifi_init(&cfgInitWifi);
