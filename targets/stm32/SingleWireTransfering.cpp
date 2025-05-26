@@ -125,7 +125,7 @@ void SingleWireTransfering::logImmediateSend()
 	}
 
 	// unsolicited
-	char idFlow = FlowTargetToSched;
+	char idFlow = IdContentUnsolicited;
 
 	mBufTxPending = 1;
 	mpSend(&idFlow, sizeof(idFlow), mpUser);
