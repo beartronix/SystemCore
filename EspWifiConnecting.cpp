@@ -286,10 +286,10 @@ void EspWifiConnecting::infoWifiUpdate()
 
 void EspWifiConnecting::processInfo(char *pBuf, char *pBufEnd)
 {
-#if 1
-	//dInfo("State\t\t\t%s\n", ProcStateString[mState]);
-	dInfo("RSSI\t\t\t%ddBm\n", (int)mRssi);
+#if 0
+	dInfo("State\t\t%s\n", ProcStateString[mState]);
 #endif
+	dInfo("RSSI\t\t%ddBm\n", (int)mRssi);
 }
 
 /* static functions */
