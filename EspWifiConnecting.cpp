@@ -133,7 +133,12 @@ Success EspWifiConnecting::process()
 
 		infoWifiUpdate();
 
-		//procDbgLog("WiFi disconnected");
+		if (connected)
+			break;
+
+		procDbgLog("WiFi disconnected. Waiting for reconnect");
+
+		mState = StConnectedWait;
 
 		break;
 	default:
@@ -302,6 +307,8 @@ bool EspWifiConnecting::isOk()
 void EspWifiConnecting::wifiChanged(void* arg, esp_event_base_t event_base,
 						int32_t event_id, void* event_data)
 {
+	esp_err_t res;
+
 	if (event_base != WIFI_EVENT)
 	{
 		wrnLog("invalid event type");
@@ -310,14 +317,18 @@ void EspWifiConnecting::wifiChanged(void* arg, esp_event_base_t event_base,
 
 	if (event_id == WIFI_EVENT_STA_START)
 	{
-		esp_wifi_connect();
+		res = esp_wifi_connect();
+		if (res != ESP_OK)
+			wrnLog("could not start WiFi connection: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
 		return;
 	}
 
 	if (event_id != WIFI_EVENT_STA_DISCONNECTED)
 		return;
 
-	wrnLog("disconnected from AP");
+	connected = false;
 
 	EspWifiConnecting *pWifi = (EspWifiConnecting *)arg;
 
@@ -328,9 +339,12 @@ void EspWifiConnecting::wifiChanged(void* arg, esp_event_base_t event_base,
 	}
 
 	++pWifi->mCntRetryConn;
-	dbgLog("retry to connect to the AP: %u", pWifi->mCntRetryConn);
+	//dbgLog("retry to connect to the AP: %u", pWifi->mCntRetryConn);
 
-	esp_wifi_connect();
+	res = esp_wifi_connect();
+	if (res != ESP_OK)
+		wrnLog("could not start WiFi connection: %s (0x%04x)",
+						esp_err_to_name(res), res);
 }
 
 void EspWifiConnecting::ipChanged(void *arg, esp_event_base_t event_base,
