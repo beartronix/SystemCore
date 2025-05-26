@@ -13,9 +13,9 @@
 
 [![Discord](https://img.shields.io/discord/960639692213190719?style=plastic&color=purple&logo=discord)](https://discord.gg/FBVKJTaY)
 
-These files provide a basic structure for almost all applications and a powerful debugging system.
+The SystemCore provides a lightweight and highly structured foundation for C++ applications, combining a minimalistic design with a powerful debugging and monitoring system.
 
-However, your coding style is not restricted in any way! Similar to LaTeX, focus on your content and spend less time on structural topics and debugging.
+It allows you to focus entirely on your application's logic without being restricted in your coding style. Similar to LaTeX, it separates structure from content - enabling faster, more reliable development, even for complex systems.
 
 ## Advantages
 
