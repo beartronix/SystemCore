@@ -109,7 +109,7 @@ private:
 	esp_netif_t *mpNetIf;
 	uint32_t mStartMs;
 	EventGroupHandle_t mEventGroupWifi;
-	uint8_t mCntRetryConn;
+	uint32_t mCntRetryConn;
 	int8_t mRssi;
 
 	/* static functions */
@@ -117,7 +117,6 @@ private:
 							int32_t event_id, void *event_data);
 	static void ipChanged(void *arg, esp_event_base_t event_base,
 							int32_t event_id, void *event_data);
-	static void ipv6Print(esp_netif_t *pNetIf);
 	static uint32_t millis();
 
 	/* static variables */
