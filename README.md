@@ -17,7 +17,7 @@ This C++ framework provides a lightweight and highly structured foundation for C
 
 It allows you to focus entirely on your application's logic without being restricted in your coding style. Similar to LaTeX, it separates structure from content - enabling faster, more reliable development, even for complex systems.
 
-## Advantages
+### Advantages
 
 - **Minimal boilerplate** > Focus purely on task-specific logic
 - **Recursive process structure** > Uniform system architecture from simple to complex
@@ -25,12 +25,7 @@ It allows you to focus entirely on your application's logic without being restri
 - **Memory-safe design** > Aligned lifetimes of processes and data, reducing leaks
 - **Cross-platform** > Windows, Linux, MacOS, FreeBSD, uC (STM32, ESP32, ARM, RISC-V)
 
-## Requirements
-
-- C++ standard as low as C++11 can be used
-- On Microcontrollers: Minimum of 32k flash memory
-
-### How to add to your project
+### Add to your project
 
 `git submodule add https://github.com/NoOrientationProgramming/SystemCore.git`
 
@@ -40,6 +35,13 @@ To implement a new process you can use the provided shell scripts on linux: [cpp
 
 Or just create your own..
 
-## Learn how to use it
+### Learn how to use it
 
 The [Tutorials](https://github.com/NoOrientationProgramming/NopTutorials) provide more information on how to delve into this wonderful (recursive) world ..
+
+### Requirements
+
+- C++ standard as low as C++11 can be used
+- On Microcontrollers
+  - Min. 20k RAM
+  - Min. 32k Flash
