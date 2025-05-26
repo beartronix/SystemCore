@@ -67,7 +67,7 @@ private:
 	EspWifiConnecting(const EspWifiConnecting &)
 		: Processing("")
 		, mpHostname(""), mpSsid(NULL), mpPassword(NULL), mpNetIf(NULL)
-		, mStartMs(0), mEventGroupWifi()
+		, mStarted(false), mStartMs(0), mEventGroupWifi()
 		, mCntRetryConn(0), mRssi(0)
 	{
 		mState = 0;
@@ -79,6 +79,7 @@ private:
 		mpPassword = NULL;
 		mpNetIf = NULL;
 
+		mStarted = false;
 		mStartMs = 0;
 		mEventGroupWifi = {};
 
@@ -97,6 +98,7 @@ private:
 
 	/* member functions */
 	Success process();
+	Success shutdown();
 	void processInfo(char *pBuf, char *pBufEnd);
 
 	Success wifiConfigure();
@@ -107,6 +109,7 @@ private:
 	const char *mpSsid;
 	const char *mpPassword;
 	esp_netif_t *mpNetIf;
+	bool mStarted;
 	uint32_t mStartMs;
 	EventGroupHandle_t mEventGroupWifi;
 	uint32_t mCntRetryConn;

@@ -65,6 +65,7 @@ EspWifiConnecting::EspWifiConnecting()
 	, mpSsid(NULL)
 	, mpPassword(NULL)
 	, mpNetIf(NULL)
+	, mStarted(false)
 	, mStartMs(0)
 	, mEventGroupWifi()
 	, mCntRetryConn(0)
@@ -147,6 +148,35 @@ Success EspWifiConnecting::process()
 	}
 
 	return Pending;
+}
+
+Success EspWifiConnecting::shutdown()
+{
+	esp_err_t res;
+
+	if (connected)
+	{
+		res = esp_wifi_disconnect();
+		if (res != ESP_OK)
+			procWrnLog("could not disconnect WiFi: %s (0x%04x)",
+							esp_err_to_name(res), res);
+	}
+
+	if (mStarted)
+	{
+		res = esp_wifi_stop();
+		if (res != ESP_OK)
+			procWrnLog("could not stop WiFi: %s (0x%04x)",
+							esp_err_to_name(res), res);
+		mStarted = false;
+	}
+
+	res = esp_wifi_deinit();
+	if (res != ESP_OK)
+		procWrnLog("could not deinit WiFi: %s (0x%04x)",
+						esp_err_to_name(res), res);
+
+	return Positive;
 }
 
 /*
@@ -251,6 +281,8 @@ Success EspWifiConnecting::wifiConfigure()
 	if (res != ESP_OK)
 		return procErrLog(-1, "could not start WiFi: %s (0x%04x)",
 							esp_err_to_name(res), res);
+
+	mStarted = true;
 
 	/* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
 	 * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
