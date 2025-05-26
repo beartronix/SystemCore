@@ -4,6 +4,10 @@
 If you'd like to contribute to the project, first of all: Thank you!
 At the moment we have some options already.
 
+## Just use the core
+
+This would make us very happy! =)
+
 ## Create an issue
 
 You are using the `SystemCore` of [NoOrientationProgramming](https://github.com/NoOrientationProgramming) and encountered something strange you did not expect?
