@@ -50,8 +50,9 @@ enum SwtIdContentTaToSc
 	IdContentTaToScCmd,
 };
 
-enum SwtIdContentEnd
+enum SwtIdContentFrame
 {
+	IdContentUnsolicited = 0x05,
 	IdContentCut = 0x0F,
 	IdContentEnd = 0x17,
 };
