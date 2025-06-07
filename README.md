@@ -45,6 +45,6 @@ Another greate example for using the SystemCore is [CodeOrb](https://github.com/
 ### Requirements
 
 - C++ standard as low as C++11 can be used
-- On Microcontrollers
+- On Microcontrollers, recommended
   - Min. 20k RAM
   - Min. 32k Flash
