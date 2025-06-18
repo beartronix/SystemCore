@@ -1096,6 +1096,8 @@ Processing **Processing::childElemErase(Processing **pChildListElem)
 }
 #endif
 
+#include "stm32l4xx_hal.h"
+#include "util.h"
 void Processing::parentalDrive(Processing *pChild)
 {
 	if (pChild->mDriver != DrivenByParent)
@@ -1105,6 +1107,12 @@ void Processing::parentalDrive(Processing *pChild)
 		return;
 
 	pChild->treeTick();
+
+	if (FLASH->SR)
+	{
+		dbgLog("FLASH->SR == 0x%04X", (unsigned int)FLASH->SR);
+		FLASH_WaitForLastOperation(10);
+	}
 
 	if (pChild->progress())
 		return;
