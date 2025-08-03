@@ -200,7 +200,6 @@ int16_t entryLogCreate(
 
 	// build day
 	time_t tTt = system_clock::to_time_t(t);
-#endif
 	char timeBuf[32];
 	tm tTm {};
 #ifdef _WIN32
@@ -211,7 +210,6 @@ int16_t entryLogCreate(
 	strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d", &tTm);
 
 	// build time
-#if CONFIG_PROC_HAVE_CHRONO
 	system_clock::duration dur = t.time_since_epoch();
 
 	hours durDays = duration_cast<hours>(dur) / 24;

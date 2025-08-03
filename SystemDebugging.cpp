@@ -359,7 +359,7 @@ void SystemDebugging::processTreeSend()
 {
 	if (mProcTreeChanged)
 	{
-		uint32_t diffMs = nowMs() - mProcTreeChangedTime;
+		uint32_t diffMs = millis() - mProcTreeChangedTime;
 
 		if (diffMs < mUpdateMs)
 			return;
@@ -414,7 +414,7 @@ void SystemDebugging::processTreeSend()
 	mProcTree = procTree;
 
 	mProcTreeChanged = true;
-	mProcTreeChangedTime = nowMs();
+	mProcTreeChangedTime = millis();
 }
 
 #if CONFIG_PROC_HAVE_LOG

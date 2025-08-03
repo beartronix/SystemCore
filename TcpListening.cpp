@@ -339,7 +339,7 @@ Success TcpListening::connectionsAccept(SOCKET &fdLst)
 		return Pending;
 	}
 
-	ppPeerFd.commit(peerSocketFd, nowMs());
+	ppPeerFd.commit(peerSocketFd, millis());
 	++mConnCreated;
 
 	return Positive;

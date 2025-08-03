@@ -95,11 +95,6 @@
 #define CONFIG_PROC_DISABLE_TREE_DEFAULT		0
 #endif
 
-#ifndef CONFIG_PROC_HAVE_CHRONO
-#define CONFIG_PROC_HAVE_CHRONO					0
-#endif
-
-
 #if CONFIG_PROC_HAVE_LIB_STD_C
 #include <stdint.h>
 #include <string.h>
