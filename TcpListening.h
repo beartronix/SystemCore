@@ -47,6 +47,7 @@
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #else
 #include <sys/socket.h>
 #ifndef LWIP
@@ -90,14 +91,41 @@ public:
 
 protected:
 
-	TcpListening();
 	virtual ~TcpListening() {}
 
 private:
 
-	TcpListening(const TcpListening &) : Processing("") {}
+	TcpListening();
+	TcpListening(const TcpListening &)
+		: Processing("")
+		, mPort(0)
+		, mLocalOnly(false)
+		, mMaxConn(0)
+		, mInterrupted(false)
+		, mCntSkip(0)
+		, mFdLstIPv4(INVALID_SOCKET)
+		, mFdLstIPv6(INVALID_SOCKET)
+		, mAddrIPv4("")
+		, mAddrIPv6("")
+		, mConnCreated(0)
+	{
+		mState = 0;
+	}
 	TcpListening &operator=(const TcpListening &)
 	{
+		mPort = 0;
+		mLocalOnly = false;
+		mMaxConn = 0;
+		mInterrupted = false;
+		mCntSkip = 0;
+		mFdLstIPv4 = INVALID_SOCKET;
+		mFdLstIPv6 = INVALID_SOCKET;
+		mAddrIPv4 = "";
+		mAddrIPv6 = "";
+		mConnCreated = 0;
+
+		mState = 0;
+
 		return *this;
 	}
 

@@ -30,8 +30,8 @@
 
 #include "Processing.h"
 
-#define coreLog(m, ...)					(genericLog(5, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
-#define procCoreLog(m, ...)				(genericLog(5, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
+#define coreLog(m, ...)					(genericLog(5, NULL, 0, m, ##__VA_ARGS__))
+#define procCoreLog(m, ...)				(genericLog(5, this, 0, m, ##__VA_ARGS__))
 
 #if CONFIG_PROC_HAVE_DRIVERS
 #define CONFIG_PROC_TITLE_NEW_DRIVER
@@ -112,7 +112,7 @@ void Processing::treeTick()
 	// No need to lock child list here
 
 	Processing *pChild = NULL;
-	Success success;
+	Success sSuccess;
 	bool childCanBeRemoved;
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
@@ -213,14 +213,14 @@ void Processing::treeTick()
 			break;
 		}
 
-		success = initialize(); // child list may be changed here
+		sSuccess = initialize(); // child list may be changed here
 
-		if (success == Pending)
+		if (sSuccess == Pending)
 			break;
 
-		if (success != Positive)
+		if (sSuccess != Positive)
 		{
-			mSuccess = success;
+			mSuccess = sSuccess;
 			procCoreLog("initializing(): failed. success = %d", int(mSuccess));
 			procCoreLog("downShutting()");
 			mStateAbstract = PsDownShutting;
@@ -244,12 +244,12 @@ void Processing::treeTick()
 			break;
 		}
 
-		success = process(); // child list may be changed here
+		sSuccess = process(); // child list may be changed here
 
-		if (success == Pending)
+		if (sSuccess == Pending)
 			break;
 
-		mSuccess = success;
+		mSuccess = sSuccess;
 
 		procCoreLog("processing(): done. success = %d", int(mSuccess));
 		mStatDrv |= PsbDrvProcessDone;
@@ -260,9 +260,9 @@ void Processing::treeTick()
 		break;
 	case PsDownShutting:
 
-		success = shutdown(); // child list may be changed here
+		sSuccess = shutdown(); // child list may be changed here
 
-		if (success == Pending)
+		if (sSuccess == Pending)
 			break;
 
 		procCoreLog("downShutting(): done");
@@ -347,8 +347,9 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 {
 	Processing *pChild = NULL;
 	static char bufInfo[CONFIG_PROC_INFO_BUFFER_SIZE];
-	char *pBufStart = pBuf;
-	char *pBufLineStart, *pBufIter;
+	const char *pBufStart = pBuf;
+	const char *pBufLineStart;
+	char *pBufIter;
 	int8_t n, lastChildInfoLine;
 	int8_t cntChildDrawn;
 
@@ -374,7 +375,7 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 	{
 #if CONFIG_PROC_USE_DRIVER_COLOR
 		if (colored)
-			dInfo("\033[95m");
+			dInfo("\033[38;5;135m");
 		else
 #endif
 			dInfo("### ");
@@ -382,14 +383,14 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 
 #if CONFIG_PROC_USE_DRIVER_COLOR
 	if (colored && !mLevelDriver)
-		dInfo("\033[32m");
+		dInfo("\033[38;5;40m");
 #endif
 
 	if (mDriver == DrivenByNewInternalDriver)
 	{
 #if CONFIG_PROC_USE_DRIVER_COLOR
 		if (colored)
-			dInfo("\033[36m");
+			dInfo("\033[38;5;81m");
 		else
 #endif
 			dInfo("*** ");
@@ -920,8 +921,8 @@ Success Processing::childrenSuccess()
 	if (!mNumChildren)
 		return Positive;
 
-	Processing *pChild = NULL;
-	Success success;
+	const Processing *pChild = NULL;
+	Success sSuccess;
 	bool oneIsPending = false;
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
@@ -938,12 +939,12 @@ Success Processing::childrenSuccess()
 		if (pChild->mStatParent & PsbParUnused)
 			continue;
 
-		success = pChild->success();
+		sSuccess = pChild->success();
 
-		if (success < Pending)
-			return success;
+		if (sSuccess < Pending)
+			return sSuccess;
 
-		if (success == Pending)
+		if (sSuccess == Pending)
 			oneIsPending = true;
 	}
 

@@ -32,39 +32,87 @@
 #define SYSTEM_DEBUGGING_H
 
 #include "Processing.h"
+#include "SingleWireTransfering.h"
 
-typedef void (*CmdFunc)(const char *pArg, char *pBuf, char *pBufEnd);
+typedef void (*FuncCommand)(char *pArg, char *pBuf, char *pBufEnd);
 
 struct Command
 {
-	const char *id;
-	CmdFunc func;
+	const char *pId;
+	FuncCommand pFctExec;
+	const char *pShortcut;
+	const char *pDesc;
+	const char *pGroup;
 };
+
+bool cmdReg(
+		const char *pId,
+		FuncCommand pFct,
+		const char *pShortcut = "",
+		const char *pDesc = "",
+		const char *pGroup = "");
 
 class SystemDebugging : public Processing
 {
 
 public:
 
-	static SystemDebugging *create()
+	static SystemDebugging *create(Processing *pTreeRoot)
 	{
-		return new (std::nothrow) SystemDebugging;
+		return new dNoThrow SystemDebugging(pTreeRoot);
 	}
 
-	void treeRootSet(Processing *pTreeRoot);
+	void fctDataSendSet(FuncDataSend pFct, void *pUser);
+	void logImmediateSendSet(bool val = true);
 
-	static bool cmdReg(const char *pId, CmdFunc pFunc);
+	void dataReceived(char *pData, size_t len);
+	void dataSent();
+
+	bool ready();
+	bool logOverflowed();
+
+	static void levelLogSet(int lvl);
 
 protected:
 
-	SystemDebugging();
-	virtual ~SystemDebugging();
+	virtual ~SystemDebugging() {}
 
 private:
 
-	SystemDebugging(const SystemDebugging &) : Processing("") {}
+	SystemDebugging(Processing *pTreeRoot);
+	SystemDebugging()
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpSend(NULL)
+		, mpUser(NULL)
+		, mReady(false)
+		, mStateCmd(0)
+		, mCntDelay(0)
+	{
+		mState = 0;
+	}
+	SystemDebugging(const SystemDebugging &)
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpSend(NULL)
+		, mpUser(NULL)
+		, mReady(false)
+		, mStateCmd(0)
+		, mCntDelay(0)
+	{
+		mState = 0;
+	}
 	SystemDebugging &operator=(const SystemDebugging &)
 	{
+		mpTreeRoot = NULL;
+		mpSend = NULL;
+		mpUser = NULL;
+		mReady = false;
+		mStateCmd = 0;
+		mCntDelay = 0;
+
+		mState = 0;
+
 		return *this;
 	}
 
@@ -74,7 +122,6 @@ private:
 	 */
 
 	/* member functions */
-	Success initialize();
 	Success process();
 	void commandInterpret();
 	void procTreeSend();
@@ -82,10 +129,24 @@ private:
 
 	/* member variables */
 	Processing *mpTreeRoot;
-	uint8_t state;
+	FuncDataSend mpSend;
+	void *mpUser;
+	bool mReady;
+	uint8_t mStateCmd;
+	uint16_t mCntDelay;
 
 	/* static functions */
-	static Command *freeCmdStructGet();
+	static void cmdInfoHelp(char *pArgs, char *pBuf, char *pBufEnd);
+	static void cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd);
+	static void entryLogEnqueue(
+			const int severity,
+			const void *pProc,
+			const char *filename,
+			const char *function,
+			const int line,
+			const int16_t code,
+			const char *msg,
+			const size_t len);
 
 	/* static variables */
 

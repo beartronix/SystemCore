@@ -46,7 +46,6 @@ enum PeerType {
 	PeerProc = 0,
 	PeerLog,
 	PeerCmd,
-	PeerEnv,
 };
 
 struct SystemDebuggingPeer
@@ -77,16 +76,68 @@ public:
 	RingBuffer<std::string>& logBuf() { return SystemDebugging::qLogEntriesExt; }
 
 protected:
-
-	SystemDebugging() = delete;
-	SystemDebugging(Processing *pTreeRoot);
 	virtual ~SystemDebugging() {}
 
 private:
 
-	SystemDebugging(const SystemDebugging &) = delete;
+	SystemDebugging(Processing *pTreeRoot);
+	SystemDebugging()
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpLstProc(NULL)
+		, mpLstLog(NULL)
+		, mpLstCmd(NULL)
+		, mpLstCmdAuto(NULL)
+		, mPeerList()
+		, mProcTree("")
+		, mListenLocal(false)
+		, mProcTreeChanged(false)
+		, mProcTreePeerAdded(false)
+		, mPeerLogOnceConnected(false)
+		, mUpdateMs(0)
+		, mProcTreeChangedTime(0)
+		, mPortStart(0)
+	{
+		mState = 0;
+	}
+	SystemDebugging(const SystemDebugging &)
+		: Processing("")
+		, mpTreeRoot(NULL)
+		, mpLstProc(NULL)
+		, mpLstLog(NULL)
+		, mpLstCmd(NULL)
+		, mpLstCmdAuto(NULL)
+		, mPeerList()
+		, mProcTree("")
+		, mListenLocal(false)
+		, mProcTreeChanged(false)
+		, mProcTreePeerAdded(false)
+		, mPeerLogOnceConnected(false)
+		, mUpdateMs(0)
+		, mProcTreeChangedTime(0)
+		, mPortStart(0)
+	{
+		mState = 0;
+	}
 	SystemDebugging &operator=(const SystemDebugging &)
 	{
+		mpTreeRoot = NULL;
+		mpLstProc = NULL;
+		mpLstLog = NULL;
+		mpLstCmd = NULL;
+		mpLstCmdAuto = NULL;
+		mPeerList.clear();
+		mProcTree = "";
+		mListenLocal = false;
+		mProcTreeChanged = false;
+		mProcTreePeerAdded = false;
+		mPeerLogOnceConnected = false;
+		mUpdateMs = 0;
+		mProcTreeChangedTime = 0;
+		mPortStart = 0;
+
+		mState = 0;
+
 		return *this;
 	}
 
@@ -96,9 +147,8 @@ private:
 	 */
 
 	/* member functions */
-	Success initialize();
 	Success process();
-	Success shutdown();
+	Success listenersStart();
 
 	void peerListUpdate();
 	void commandAutoProcess();
@@ -135,8 +185,9 @@ private:
 	static void cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd);
 	static void procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd);
 	static void procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufEnd);
-	static void entryLogCreate(
+	static void entryLogEnqueue(
 			const int severity,
+			const void *pProc,
 			const char *filename,
 			const char *function,
 			const int line,
@@ -145,8 +196,6 @@ private:
 			const size_t len);
 
 	/* static variables */
-	static bool procTreeDetailed;
-	static bool procTreeColored;
 	static std::queue<std::string> qLogEntries;
 	static RingBuffer<std::string> qLogEntriesExt; // for external access
 	static int levelLog;

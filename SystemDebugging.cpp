@@ -32,13 +32,25 @@
 
 #include "SystemDebugging.h"
 
+#define dForEach_ProcState(gen) \
+		gen(StStart) \
+		gen(StMain) \
+
+#define dGenProcStateEnum(s) s,
+dProcessStateEnum(ProcState);
+
+#if 0
+#define dGenProcStateString(s) #s,
+dProcessStateStr(ProcState);
+#endif
+
 using namespace std;
 
 typedef list<struct SystemDebuggingPeer>::iterator PeerIter;
-
+#if 0
 bool SystemDebugging::procTreeDetailed = true;
 bool SystemDebugging::procTreeColored = true;
-
+#endif
 queue<string> SystemDebugging::qLogEntries;
 RingBuffer<string> SystemDebugging::qLogEntriesExt(10);
 #if CONFIG_PROC_HAVE_DRIVERS
@@ -70,9 +82,11 @@ SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 	, mProcTreeChangedTime(0)
 	, mPortStart(3000)
 {
+	mState = StStart;
 }
 
 /* member functions */
+
 void SystemDebugging::listenLocalSet()
 {
 	mListenLocal = true;
@@ -83,17 +97,61 @@ void SystemDebugging::portStartSet(uint16_t port)
 	mPortStart = port;
 }
 
-void SystemDebugging::levelLogSet(int lvl)
-{
-	levelLog = lvl;
-}
-
 bool SystemDebugging::ready()
 {
 	return mPeerLogOnceConnected;
 }
 
-Success SystemDebugging::initialize()
+void SystemDebugging::levelLogSet(int lvl)
+{
+	levelLog = lvl;
+}
+
+Success SystemDebugging::process()
+{
+	//uint32_t curTimeMs = millis();
+	//uint32_t diffMs = curTimeMs - mStartMs;
+	Success success;
+#if 0
+	dStateTrace;
+#endif
+	switch (mState)
+	{
+	case StStart:
+
+		if (!mpTreeRoot)
+			return procErrLog(-1, "tree root not set");
+
+		success = listenersStart();
+		if (success != Positive)
+			return procErrLog(-1, "could not start listeners");
+
+		cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
+		cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
+
+		entryLogCreateSet(SystemDebugging::entryLogEnqueue);
+
+		mState = StMain;
+
+		break;
+	case StMain:
+
+		peerListUpdate();
+		commandAutoProcess();
+
+		processTreeSend();
+#if CONFIG_PROC_HAVE_LOG
+		logEntriesSend();
+#endif
+		break;
+	default:
+		break;
+	}
+
+	return Pending;
+}
+
+Success SystemDebugging::listenersStart()
 {
 	mPeerList.clear();
 
@@ -134,30 +192,6 @@ Success SystemDebugging::initialize()
 
 	start(mpLstCmdAuto);
 
-	//cmdReg("detailed", &SystemDebugging::procTreeDetailedToggle, "", "toggle detailed process tree output", cInternalCmdCls);
-	//cmdReg("colored", &SystemDebugging::procTreeColoredToggle, "", "toggle colored process tree output", cInternalCmdCls);
-	cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
-	cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
-
-	entryLogCreateSet(SystemDebugging::entryLogCreate);
-
-	return Positive;
-}
-
-Success SystemDebugging::process()
-{
-	peerListUpdate();
-	commandAutoProcess();
-
-	processTreeSend();
-#if CONFIG_PROC_HAVE_LOG
-	logEntriesSend();
-#endif
-	return Pending;
-}
-
-Success SystemDebugging::shutdown()
-{
 	return Positive;
 }
 
@@ -335,11 +369,14 @@ void SystemDebugging::processTreeSend()
 
 	*buffProcTree = 0;
 
+	bool detailed = true;
+	bool colored = true;
+
 	mpTreeRoot->processTreeStr(
 			buffProcTree,
 			buffProcTree + sizeof(buffProcTree),
-			procTreeDetailed,
-			procTreeColored);
+			detailed,
+			colored);
 
 	string procTree(buffProcTree);
 
@@ -452,28 +489,9 @@ void SystemDebugging::cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd)
 	dInfo("System log level set to %d", lvl);
 }
 
-void SystemDebugging::procTreeDetailedToggle(char *pArgs, char *pBuf, char *pBufEnd)
-{
-	(void)pArgs;
-	(void)pBuf;
-	(void)pBufEnd;
-
-	procTreeDetailed = !procTreeDetailed;
-}
-
-void SystemDebugging::procTreeColoredToggle(char *pArgs, char *pBuf, char *pBufEnd)
-{
-	(void)pArgs;
-	(void)pBuf;
-	(void)pBufEnd;
-
-#if CONFIG_PROC_USE_DRIVER_COLOR
-	procTreeColored = !procTreeColored;
-#endif
-}
-
-void SystemDebugging::entryLogCreate(
+void SystemDebugging::entryLogEnqueue(
 		const int severity,
+		const void *pProc,
 		const char *filename,
 		const char *function,
 		const int line,
@@ -484,6 +502,7 @@ void SystemDebugging::entryLogCreate(
 #if CONFIG_PROC_HAVE_DRIVERS
 	Guard lock(mtxLogEntries);
 #endif
+	(void)pProc;
 	(void)filename;
 	(void)function;
 	(void)line;

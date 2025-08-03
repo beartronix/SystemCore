@@ -46,6 +46,7 @@
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #else
 #include <sys/socket.h>
 #ifndef LWIP
@@ -96,16 +97,69 @@ public:
 
 protected:
 
-	TcpTransfering(SOCKET fd);
-	TcpTransfering(const std::string &hostAddr, uint16_t hostPort);
 	virtual ~TcpTransfering() {}
 
 private:
 
-	TcpTransfering() : Transfering("") {}
-	TcpTransfering(const TcpTransfering &) : Transfering("") {}
+	TcpTransfering(SOCKET fd);
+	TcpTransfering(const std::string &hostAddr, uint16_t hostPort);
+	TcpTransfering()
+		: Transfering("")
+		, mStartMs(0)
+#if CONFIG_PROC_HAVE_DRIVERS
+		, mSocketFdMtx()
+#endif
+		, mSocketFd(INVALID_SOCKET)
+		, mHostAddrStr("")
+		, mHostPort(0)
+		, mpHostAddr(NULL)
+		, mErrno(0)
+		, mInfoSet(false)
+		, mIsIPv6Local(false)
+		, mIsIPv6Remote(false)
+		, mBytesReceived(0)
+		, mBytesSent(0)
+	{
+		mState = 0;
+		mSendReady = false;
+	}
+	TcpTransfering(const TcpTransfering &)
+		: Transfering("")
+		, mStartMs(0)
+#if CONFIG_PROC_HAVE_DRIVERS
+		, mSocketFdMtx()
+#endif
+		, mSocketFd(INVALID_SOCKET)
+		, mHostAddrStr("")
+		, mHostPort(0)
+		, mpHostAddr(NULL)
+		, mErrno(0)
+		, mInfoSet(false)
+		, mIsIPv6Local(false)
+		, mIsIPv6Remote(false)
+		, mBytesReceived(0)
+		, mBytesSent(0)
+	{
+		mState = 0;
+		mSendReady = false;
+	}
 	TcpTransfering &operator=(const TcpTransfering &)
 	{
+		mStartMs = 0;
+		mSocketFd = INVALID_SOCKET;
+		mHostAddrStr = "";
+		mHostPort = 0;
+		mpHostAddr = NULL;
+		mErrno = 0;
+		mInfoSet = false;
+		mIsIPv6Local = false;
+		mIsIPv6Remote = false;
+		mBytesReceived = 0;
+		mBytesSent = 0;
+
+		mState = 0;
+		mSendReady = false;
+
 		return *this;
 	}
 

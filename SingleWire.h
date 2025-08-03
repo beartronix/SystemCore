@@ -28,66 +28,33 @@
   SOFTWARE.
 */
 
-#ifndef SINGLE_WIRE_TRANSFERING_H
-#define SINGLE_WIRE_TRANSFERING_H
+#ifndef SINGLE_WIRE_H
+#define SINGLE_WIRE_H
 
-#include "Processing.h"
-
-#include "env.h"
-
-class SingleWireTransfering : public Processing
+enum SwtFlowDirection
 {
+	FlowSchedToTarget = 0x0B,
+	FlowTargetToSched = 0x0C
+};
 
-public:
+enum SwtIdContentScToTa
+{
+	IdContentScToTaCmd = 0x1A,
+};
 
-	static SingleWireTransfering *create()
-	{
-		return new (std::nothrow) SingleWireTransfering;
-	}
+enum SwtIdContentTaToSc
+{
+	IdContentTaToScNone = 0x15,
+	IdContentTaToScProc = 0x11,
+	IdContentTaToScLog,
+	IdContentTaToScCmd,
+};
 
-	static uint8_t buffRx[2];
-	static uint8_t buffRxIdxIrq;
-	static uint8_t buffRxIdxWritten;
-	static uint8_t buffTxPending;
-
-protected:
-
-	SingleWireTransfering();
-	virtual ~SingleWireTransfering();
-
-private:
-
-	SingleWireTransfering(const SingleWireTransfering &) : Processing("") {}
-	SingleWireTransfering &operator=(const SingleWireTransfering &)
-	{
-		return *this;
-	}
-
-	/*
-	 * Naming of functions:  objectVerb()
-	 * Example:              peerAdd()
-	 */
-
-	/* member functions */
-	Success initialize();
-	Success process();
-	void processInfo(char *pBuf, char *pBufEnd);
-
-	uint8_t byteReceived(uint8_t *pData);
-
-	/* member variables */
-	uint8_t state;
-	uint8_t contentTx;
-	uint8_t validIdTx;
-	char *pDataTx;
-	uint8_t idxRx;
-
-	/* static functions */
-
-	/* static variables */
-
-	/* constants */
-
+enum SwtIdContentFrame
+{
+	IdContentUnsolicited = 0x05,
+	IdContentCut = 0x0F,
+	IdContentEnd = 0x17,
 };
 
 #endif

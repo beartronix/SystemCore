@@ -31,7 +31,9 @@
 #ifndef ESP_WIFI_CONNECTING_H
 #define ESP_WIFI_CONNECTING_H
 
+#include <esp_event.h>
 #include <esp_wifi.h>
+#include <freertos/event_groups.h>
 
 #include "Processing.h"
 
@@ -53,17 +55,41 @@ public:
 
 	// output
 
-	static bool ok();
+	static bool isOk();
 
 protected:
 
-	EspWifiConnecting();
 	virtual ~EspWifiConnecting() {}
 
 private:
 
-	EspWifiConnecting(const EspWifiConnecting &) : Processing("") {}
-	EspWifiConnecting &operator=(const EspWifiConnecting &) { return *this; }
+	EspWifiConnecting();
+	EspWifiConnecting(const EspWifiConnecting &)
+		: Processing("")
+		, mpHostname(""), mpSsid(NULL), mpPassword(NULL), mpNetIf(NULL)
+		, mStarted(false), mStartMs(0), mEventGroupWifi()
+		, mCntRetryConn(0), mRssi(0)
+	{
+		mState = 0;
+	}
+	EspWifiConnecting &operator=(const EspWifiConnecting &)
+	{
+		mpHostname = "";
+		mpSsid = NULL;
+		mpPassword = NULL;
+		mpNetIf = NULL;
+
+		mStarted = false;
+		mStartMs = 0;
+		mEventGroupWifi = {};
+
+		mCntRetryConn = 0;
+		mRssi = 0;
+
+		mState = 0;
+
+		return *this;
+	}
 
 	/*
 	 * Naming of functions:  objectVerb()
@@ -72,26 +98,32 @@ private:
 
 	/* member functions */
 	Success process();
+	Success shutdown();
 	void processInfo(char *pBuf, char *pBufEnd);
 
-	void infoWifiUpdate();
 	Success wifiConfigure();
+	void infoWifiUpdate();
 
 	/* member variables */
-	uint32_t mStartMs;
-	esp_netif_t *mpNetInterface;
-	esp_netif_ip_info_t mIpInfo;
 	const char *mpHostname;
 	const char *mpSsid;
 	const char *mpPassword;
-	bool mWifiConnected;
+	esp_netif_t *mpNetIf;
+	bool mStarted;
+	uint32_t mStartMs;
+	EventGroupHandle_t mEventGroupWifi;
+	uint32_t mCntRetryConn;
 	int8_t mRssi;
 
 	/* static functions */
+	static void wifiChanged(void *arg, esp_event_base_t event_base,
+							int32_t event_id, void *event_data);
+	static void ipChanged(void *arg, esp_event_base_t event_base,
+							int32_t event_id, void *event_data);
 	static uint32_t millis();
 
 	/* static variables */
-	static bool mConnected;
+	static bool connected;
 
 	/* constants */
 

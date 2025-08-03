@@ -30,20 +30,16 @@
 
 #include <chrono>
 #include <esp_err.h>
-#include <nvs_flash.h>
+#include <esp_netif.h>
+#include <lwip/inet.h>
+#include <lwip/ip6_addr.h>
 
 #include "EspWifiConnecting.h"
 
 #define dForEach_ProcState(gen) \
 		gen(StStart) \
-		gen(StDependenciesInit) \
-		gen(StConfigure) \
-		gen(StConnect) \
 		gen(StConnectedWait) \
-		gen(StIfUpWait) \
 		gen(StMain) \
-		gen(StDisconnect) \
-		gen(StDisconnectedWait) \
 
 #define dGenProcStateEnum(s) s,
 dProcessStateEnum(ProcState);
@@ -57,22 +53,25 @@ using namespace std;
 using namespace chrono;
 
 const uint32_t cUpdateDelayMs = 200;
-const uint32_t cIfUpWaitTmoMs = 5000;
 
-bool EspWifiConnecting::mConnected = false;
+bool EspWifiConnecting::connected = false;
+
+#define WIFI_FAIL_BIT		BIT1
+#define WIFI_CONNECTED_BIT	BIT0
 
 EspWifiConnecting::EspWifiConnecting()
 	: Processing("EspWifiConnecting")
-	, mStartMs(0)
-	, mpNetInterface(NULL)
-	, mpHostname("DSPC_ESP_WIFI")
+	, mpHostname("dspc-esp")
 	, mpSsid(NULL)
 	, mpPassword(NULL)
-	, mWifiConnected(false)
+	, mpNetIf(NULL)
+	, mStarted(false)
+	, mStartMs(0)
+	, mEventGroupWifi()
+	, mCntRetryConn(0)
 	, mRssi(0)
 {
 	mState = StStart;
-	mIpInfo.ip.addr = 0;
 }
 
 /* member functions */
@@ -83,7 +82,6 @@ Success EspWifiConnecting::process()
 	uint32_t diffMs = curTimeMs - mStartMs;
 	Success success;
 	esp_err_t res;
-	bool ok;
 #if 0
 	dStateTrace;
 #endif
@@ -92,7 +90,7 @@ Success EspWifiConnecting::process()
 	case StStart:
 
 		if (!mpHostname)
-			return procErrLog(-1, "Network hostname not set");
+			return procErrLog(-1, "network hostname not set");
 
 		if (!mpSsid)
 			return procErrLog(-1, "WiFi SSID not set");
@@ -100,124 +98,29 @@ Success EspWifiConnecting::process()
 		if (!mpPassword)
 			return procErrLog(-1, "WiFi password not set");
 
-		mState = StDependenciesInit;
-
-		break;
-	case StDependenciesInit:
-
-		res = nvs_flash_init();
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not init NVS: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		res = esp_netif_init();
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not init network interface: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		res = esp_event_loop_create_default();
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not create event loop: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		{
-			esp_netif_config_t cfg = ESP_NETIF_DEFAULT_WIFI_STA();
-			mpNetInterface = esp_netif_new(&cfg);
-		}
-		if (!mpNetInterface)
-			return procErrLog(-1, "could not create WiFi STA interface");
-
-		res = esp_netif_attach_wifi_station(mpNetInterface);
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not attach network interface: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		res = esp_wifi_set_default_wifi_sta_handlers();
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not set WiFi STA handlers: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		res = esp_netif_set_hostname(mpNetInterface, mpHostname);
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not set hostname: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		{
-			wifi_init_config_t cfgWifiInit = WIFI_INIT_CONFIG_DEFAULT();
-			res = esp_wifi_init(&cfgWifiInit);
-		}
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not init WiFi: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		mState = StConfigure;
-
-		break;
-	case StConfigure:
-
-		res = esp_wifi_set_mode(WIFI_MODE_STA);
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not set WiFi mode: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		res = esp_wifi_start();
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not start WiFi: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
 		success = wifiConfigure();
 		if (success != Positive)
 			return procErrLog(-1, "could not configure WiFi");
 
-		mState = StConnect;
+		procDbgLog("WiFi configured");
 
-		break;
-	case StConnect:
-
-		res = esp_wifi_connect();
-		if (res != ESP_OK)
-			return procErrLog(-1, "could not connect WiFi: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		mStartMs = curTimeMs;
 		mState = StConnectedWait;
 
 		break;
 	case StConnectedWait:
-#if 0 // Do not spam logs. Use network interface up as connected indicator
-		infoWifiUpdate();
-		if (!mWifiConnected)
+
+		if (!connected)
 			break;
 
 		procDbgLog("WiFi connected");
-#endif
-		mState = StIfUpWait;
 
-		break;
-	case StIfUpWait:
+		procDbgLog("network interface is %s",
+				esp_netif_is_netif_up(mpNetIf) ? "up" : "down");
 
-		if (diffMs > cIfUpWaitTmoMs)
-		{
-			//procDbgLog("Timeout reached for interface up");
-			mState = StConnect;
-			break;
-		}
-
-		ok = esp_netif_is_netif_up(mpNetInterface);
-		if (!ok)
-			break;
-
-		// Interface must be up in order to get current IP info
-		res = esp_netif_get_ip_info(mpNetInterface, &mIpInfo);
+		res = esp_netif_create_ip6_linklocal(mpNetIf);
 		if (res != ESP_OK)
-			break;
-
-		if (!mIpInfo.ip.addr)
-			break;
-
-		procDbgLog("Interface up. IP: " IPSTR, IP2STR(&mIpInfo.ip));
-
-		mConnected = true;
+			procWrnLog("could not create IPv6 linklocal: %s (0x%04x)",
+								esp_err_to_name(res), res);
 
 		mStartMs = curTimeMs;
 		mState = StMain;
@@ -229,39 +132,15 @@ Success EspWifiConnecting::process()
 			break;
 		mStartMs = curTimeMs;
 
-		infoWifiUpdate();
-		if (mWifiConnected)
+		if (!connected)
+		{
+			procDbgLog("WiFi disconnected. Waiting for reconnect");
+
+			mState = StConnectedWait;
 			break;
-
-		mState = StDisconnect;
-
-		break;
-	case StDisconnect:
-
-		res = esp_wifi_disconnect();
-		if (res != ESP_OK)
-			procErrLog(-1, "could not disconnect WiFi: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		res = esp_wifi_stop();
-		if (res != ESP_OK)
-			procErrLog(-1, "could not stop WiFi: %s (0x%04x)",
-								esp_err_to_name(res), res);
-
-		mConnected = false;
-
-		mState = StDisconnectedWait;
-
-		break;
-	case StDisconnectedWait:
+		}
 
 		infoWifiUpdate();
-		if (mWifiConnected)
-			break;
-
-		procDbgLog("WiFi disconnected");
-
-		mState = StConfigure;
 
 		break;
 	default:
@@ -271,29 +150,108 @@ Success EspWifiConnecting::process()
 	return Pending;
 }
 
-void EspWifiConnecting::infoWifiUpdate()
+Success EspWifiConnecting::shutdown()
 {
-	wifi_ap_record_t apRemoteInfo;
 	esp_err_t res;
 
-	res = esp_wifi_sta_get_ap_info(&apRemoteInfo);
-	if (res == ESP_ERR_WIFI_CONN) // not initialized
-		return;
-
-	if (res == ESP_ERR_WIFI_NOT_CONNECT)
+	if (connected)
 	{
-		mWifiConnected = false;
-		return;
+		res = esp_wifi_disconnect();
+		if (res != ESP_OK)
+			procWrnLog("could not disconnect WiFi: %s (0x%04x)",
+							esp_err_to_name(res), res);
 	}
 
-	mWifiConnected = true;
-	mRssi = apRemoteInfo.rssi;
+	if (mStarted)
+	{
+		res = esp_wifi_stop();
+		if (res != ESP_OK)
+			procWrnLog("could not stop WiFi: %s (0x%04x)",
+							esp_err_to_name(res), res);
+		mStarted = false;
+	}
+
+	res = esp_wifi_deinit();
+	if (res != ESP_OK)
+		procWrnLog("could not deinit WiFi: %s (0x%04x)",
+						esp_err_to_name(res), res);
+
+	return Positive;
 }
 
+/*
+ * Literature
+ * - https://freertos.org/Documentation/02-Kernel/04-API-references/12-Event-groups-or-flags/01-xEventGroupCreate
+ * - https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/esp_event.html
+ * - https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/network/esp_netif.html
+ */
 Success EspWifiConnecting::wifiConfigure()
 {
-	wifi_config_t cfgWifi;
+	esp_event_handler_instance_t hEventAnyId;
+	esp_event_handler_instance_t hEventGotIp;
+	wifi_init_config_t cfgInitWifi;
 	esp_err_t res;
+
+	mEventGroupWifi = xEventGroupCreate();
+
+	res = esp_netif_init();
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not init network interface: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	res = esp_event_loop_create_default();
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not create event loop: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	mpNetIf = esp_netif_create_default_wifi_sta();
+	if (!mpNetIf)
+		return procErrLog(-1, "could not create default network interface");
+
+	res = esp_netif_set_hostname(mpNetIf, mpHostname);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not set hostname: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	cfgInitWifi = WIFI_INIT_CONFIG_DEFAULT();
+	res = esp_wifi_init(&cfgInitWifi);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not init wifi configuration: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	res = esp_event_handler_instance_register(WIFI_EVENT,
+				ESP_EVENT_ANY_ID,
+				&wifiChanged,
+				this,
+				&hEventAnyId);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not register event handler: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	res = esp_event_handler_instance_register(IP_EVENT,
+				IP_EVENT_STA_GOT_IP,
+				&ipChanged,
+				this,
+				&hEventGotIp);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not register event handler: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	res = esp_event_handler_instance_register(IP_EVENT,
+				IP_EVENT_GOT_IP6,
+				&ipChanged,
+				this,
+				&hEventGotIp);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not register event handler: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	res = esp_wifi_set_mode(WIFI_MODE_STA);
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not set WiFi mode: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	wifi_config_t cfgWifi;
 
 	res = esp_wifi_get_config(WIFI_IF_STA, &cfgWifi);
 	if (res != ESP_OK)
@@ -303,30 +261,166 @@ Success EspWifiConnecting::wifiConfigure()
 	strncpy((char *)cfgWifi.sta.ssid, mpSsid, sizeof(cfgWifi.sta.ssid));
 	strncpy((char *)cfgWifi.sta.password, mpPassword, sizeof(cfgWifi.sta.password));
 
-	cfgWifi.sta.failure_retry_cnt = 0;
-	cfgWifi.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+	/* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (password len => 8).
+	 * If you want to connect the device to deprecated WEP/WPA networks, Please set the threshold value
+	 * to WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK and set the password with length and format matching to
+	 * WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK standards.
+	 */
+	cfgWifi.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+	cfgWifi.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
+
+	memset(cfgWifi.sta.sae_h2e_identifier, 0, sizeof(cfgWifi.sta.sae_h2e_identifier));
+	cfgWifi.sta.sae_h2e_identifier[0] = 1;
 
 	res = esp_wifi_set_config(WIFI_IF_STA, &cfgWifi);
 	if (res != ESP_OK)
 		return procErrLog(-1, "could not set WiFi configuration: %s (0x%04x)",
 							esp_err_to_name(res), res);
 
+	res = esp_wifi_start();
+	if (res != ESP_OK)
+		return procErrLog(-1, "could not start WiFi: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+	mStarted = true;
+
+	/* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
+	 * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+	EventBits_t bits = xEventGroupWaitBits(mEventGroupWifi,
+						WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+						pdFALSE,
+						pdFALSE,
+						portMAX_DELAY);
+
+	/* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
+	 * happened. */
+	if (bits & WIFI_CONNECTED_BIT)
+		procDbgLog("connected to SSID: %s", mpSsid);
+	else if (bits & WIFI_FAIL_BIT)
+		procWrnLog("could not connect to SSID: %s", mpSsid);
+	else
+		procWrnLog("unexpected event");
+
 	return Positive;
+}
+
+void EspWifiConnecting::infoWifiUpdate()
+{
+	wifi_ap_record_t ap_info;
+	esp_err_t res;
+
+	res = esp_wifi_sta_get_ap_info(&ap_info);
+	if (res != ESP_OK)
+	{
+#if 0
+		procWrnLog("could not get AP info: %s (0x%04x)",
+							esp_err_to_name(res), res);
+#endif
+		return;
+	}
+
+	mRssi = ap_info.rssi;
+
+	//procDbgLog("RSSI: %ddBm", mRssi);
 }
 
 void EspWifiConnecting::processInfo(char *pBuf, char *pBufEnd)
 {
-#if 1
-	//dInfo("State\t\t\t%s\n", ProcStateString[mState]);
-	dInfo("RSSI\t\t\t%ddBm\n", (int)mRssi);
+#if 0
+	dInfo("State\t\t%s\n", ProcStateString[mState]);
 #endif
+	dInfo("Conn. attempts\t%u\n", mCntRetryConn);
+	dInfo("RSSI\t\t%ddBm\n", (int)mRssi);
 }
 
 /* static functions */
 
-bool EspWifiConnecting::ok()
+bool EspWifiConnecting::isOk()
 {
-	return mConnected;
+	return connected;
+}
+
+void EspWifiConnecting::wifiChanged(void* arg, esp_event_base_t event_base,
+						int32_t event_id, void* event_data)
+{
+	esp_err_t res;
+
+	if (event_base != WIFI_EVENT)
+	{
+		wrnLog("invalid event type");
+		return;
+	}
+
+	if (event_id == WIFI_EVENT_STA_START)
+	{
+		res = esp_wifi_connect();
+		if (res != ESP_OK)
+			wrnLog("could not start WiFi connection: %s (0x%04x)",
+							esp_err_to_name(res), res);
+
+		return;
+	}
+
+	if (event_id != WIFI_EVENT_STA_DISCONNECTED)
+		return;
+
+	EspWifiConnecting *pWifi = (EspWifiConnecting *)arg;
+
+	if (connected)
+		pWifi->mCntRetryConn = 0;
+
+	connected = false;
+#if 0
+	if (pWifi->mCntRetryConn > 5)
+	{
+		xEventGroupSetBits(pWifi->mEventGroupWifi, WIFI_FAIL_BIT);
+		return;
+	}
+#endif
+	++pWifi->mCntRetryConn;
+	dbgLog("retry to connect to the AP: %u", pWifi->mCntRetryConn);
+
+	res = esp_wifi_connect();
+	if (res != ESP_OK)
+		wrnLog("could not start WiFi connection: %s (0x%04x)",
+						esp_err_to_name(res), res);
+}
+
+void EspWifiConnecting::ipChanged(void *arg, esp_event_base_t event_base,
+						int32_t event_id, void *event_data)
+{
+	if (event_base != IP_EVENT)
+	{
+		wrnLog("invalid event type");
+		return;
+	}
+
+	EspWifiConnecting *pWifi = (EspWifiConnecting *)arg;
+
+	if (event_id == IP_EVENT_GOT_IP6)
+	{
+		ip_event_got_ip6_t *pEvent = (ip_event_got_ip6_t *)event_data;
+		ip6_addr_t *addrIp6 = (ip6_addr_t *)&pEvent->ip6_info.ip.addr;
+		char strIp6[46];
+
+		ip6addr_ntoa_r(addrIp6, strIp6, sizeof(strIp6));
+
+		dbgLog("IPv6      [%s]", strIp6);
+		return;
+	}
+
+	if (event_id != IP_EVENT_STA_GOT_IP)
+		return;
+
+	ip_event_got_ip_t *pEvent = (ip_event_got_ip_t *)event_data;
+
+	dbgLog("IPv4      " IPSTR, IP2STR(&pEvent->ip_info.ip));
+	dbgLog("Gateway   " IPSTR, IP2STR(&pEvent->ip_info.gw));
+	dbgLog("Netmask   " IPSTR, IP2STR(&pEvent->ip_info.netmask));
+
+	xEventGroupSetBits(pWifi->mEventGroupWifi, WIFI_CONNECTED_BIT);
+
+	connected = true;
 }
 
 uint32_t EspWifiConnecting::millis()

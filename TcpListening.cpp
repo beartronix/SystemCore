@@ -207,7 +207,10 @@ Success TcpListening::socketCreate(bool isIPv6, SOCKET &fdLst, string &strAddr)
 		struct sockaddr_in6 *pAddr6 = (struct sockaddr_in6 *)&addr;
 
 		pAddr6->sin6_port = htons(mPort);
-		pAddr6->sin6_addr = mLocalOnly ? in6addr_loopback : in6addr_any;
+
+		memset(&pAddr6->sin6_addr, 0, sizeof(pAddr6->sin6_addr));
+		if (mLocalOnly)
+			pAddr6->sin6_addr.s6_addr[15] = 1; // ::1
 	}
 #endif
 	else
@@ -280,12 +283,12 @@ Success TcpListening::connectionsAccept(SOCKET &fdLst)
 		return Pending;
 
 	SOCKET peerSocketFd;
-	int numErr = 0;
 	struct sockaddr_storage addr;
 	socklen_t addrLen;
 	string strAddr;
 	uint16_t numPort;
 	bool isIPv6, ok;
+	int numErr;
 	int res;
 
 	peerSocketFd = ::accept(fdLst, NULL, NULL);
@@ -383,16 +386,19 @@ string TcpListening::errnoToStr(int num)
 {
 	char buf[64];
 	size_t len = sizeof(buf) - 1;
-	char *pBuf = buf;
+	char *pBuf;
 
 	buf[0] = 0;
 	buf[len] = 0;
 
 #if defined(_WIN32)
+	pBuf = buf;
 	errno_t numErr = ::strerror_s(buf, len, num);
 	(void)numErr;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	int res;
+
+	pBuf = buf;
 	res = ::strerror_r(num, buf, len);
 	if (res)
 		*pBuf = 0;

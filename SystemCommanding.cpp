@@ -191,6 +191,8 @@ SystemCommanding::SystemCommanding(SOCKET fd)
 	, mIdxColCursor(0)
 	, mIdxColLineEnd(0)
 {
+	mBufOut[0] = 0;
+
 	mState = StStart;
 
 	for (size_t i = 0; i < cNumCmdInBuffer; ++i)
@@ -272,17 +274,17 @@ Success SystemCommanding::process()
 		// IAC WONT LINEMODE
 		msg += "\xFF\xFC\x22";
 
-		// Alternative screen buffer
-		msg += "\033[?1049h";
-
 		// Hide cursor
 		msg += "\033[?25l";
 
-		// Clear screen
-		msg += "\033[2J\033[H";
+		// Alternative screen buffer
+		msg += "\033[?1049h";
 
 		// Set terminal title
 		msg += "\033]2;SystemCommanding()\a";
+
+		// Clear screen
+		msg += "\033[2J\033[H";
 
 		mpTrans->send(msg.c_str(), msg.size());
 
@@ -352,7 +354,7 @@ Success SystemCommanding::shutdown()
 Success SystemCommanding::autoCommandReceive()
 {
 	ssize_t lenReq, lenDone;
-	char *pEdit= mCmdInBuf[mIdxLineEdit];
+	char *pEdit = mCmdInBuf[mIdxLineEdit];
 
 	*pEdit = 0;
 
@@ -369,10 +371,10 @@ Success SystemCommanding::autoCommandReceive()
 
 	// remove newline
 
-	if (lenDone && pEdit[lenDone - 1] == '\n')
+	if (pEdit[lenDone - 1] == '\n')
 		pEdit[--lenDone] = 0;
 
-	if (lenDone && pEdit[lenDone - 1] == '\r')
+	if (pEdit[lenDone - 1] == '\r')
 		pEdit[--lenDone] = 0;
 #if 0
 	procInfLog("auto bytes received: %d", lenDone);
@@ -535,7 +537,7 @@ void SystemCommanding::cmdCandidatesShow()
 	size_t widthNameCmdMax = 20;
 	uint8_t idxColCmdMax = 1;
 	uint8_t idxColCmd = 0;
-	string str, msg;
+	string str, str2, msg;
 
 	cmdCandidatesGet(candidates);
 
@@ -547,8 +549,8 @@ void SystemCommanding::cmdCandidatesShow()
 	iter = candidates.begin();
 	for (; iter != candidates.end(); ++iter)
 	{
-		str = *iter;
-		str = str.substr(0, widthNameCmdMax);
+		str2 = *iter;
+		str = str2.substr(0, widthNameCmdMax);
 
 		if (str.size() < widthNameCmdMax)
 			str += string(widthNameCmdMax - str.size(), ' ');
@@ -580,7 +582,7 @@ void SystemCommanding::cmdCandidatesShow()
 
 void SystemCommanding::cmdCandidatesGet(list<const char *> &listCandidates)
 {
-	char *pEdit= mCmdInBuf[mIdxLineEdit];
+	const char *pEdit = mCmdInBuf[mIdxLineEdit];
 	list<SystemCommand>::const_iterator iter;
 	const char *pId;
 
@@ -600,7 +602,7 @@ void SystemCommanding::lineAck()
 {
 	promptSend(false, false, true);
 
-	char *pEdit= mCmdInBuf[mIdxLineEdit];
+	const char *pEdit = mCmdInBuf[mIdxLineEdit];
 
 	if (*pEdit)
 	{
@@ -842,7 +844,7 @@ bool SystemCommanding::chRemove(uint16_t key)
 	if (!pRemove)
 		return false;
 
-	char *pInsert = pRemove + 1;
+	const char *pInsert = pRemove + 1;
 
 	while (true)
 	{
@@ -1000,15 +1002,16 @@ bool SystemCommanding::keyIsAlphaNum(uint16_t key)
 
 void SystemCommanding::lfToCrLf(char *pBuf, string &str)
 {
-	size_t lenBuf = strlen(pBuf);
 	char *pBufLineStart, *pBufIter;
-	char *pBufEnd;
+	const char *pBufEnd;
+	size_t lenBuf;
 
 	str.clear();
 
 	if (!pBuf || !*pBuf)
 		return;
 
+	lenBuf = strlen(pBuf);
 	str.reserve(lenBuf);
 
 	pBufEnd = pBuf + lenBuf;
@@ -1486,7 +1489,7 @@ void SystemCommanding::cmdHelpPrint(char *pArgs, char *pBuf, char *pBufEnd)
 
 void SystemCommanding::cmdHexDump(char *pArgs, char *pBuf, char *pBufEnd)
 {
-	void *pData = NULL;
+	const void *pData = NULL;
 	long int len = cLenHexDumpStd;
 
 	if (pArgs)
@@ -1527,10 +1530,10 @@ size_t SystemCommanding::hexDumpPrint(char *pBuf, char *pBufEnd,
 	char *pBufStart = pBuf;
 	const char *pByte = (const char *)pData;
 	uint32_t addressAbs = 0;
-	const char *pLine = pByte;
+	const char *pLine;
 	uint8_t lenPrinted;
 	uint8_t numBytesPerLine = colWidth;
-	size_t i = 0;
+	size_t i;
 
 	dInfo("%p  %s\n", pData, pName ? pName : "Data");
 
@@ -1582,7 +1585,7 @@ size_t SystemCommanding::hexDumpPrint(char *pBuf, char *pBufEnd,
 	return pBuf - pBufStart;
 }
 
-static bool commandSort(SystemCommand &cmdFirst, SystemCommand &cmdSecond)
+static bool commandSort(const SystemCommand &cmdFirst, const SystemCommand &cmdSecond)
 {
 	if (cmdFirst.group == cInternalCmdCls && cmdSecond.group != cInternalCmdCls)
 		return true;
@@ -1632,7 +1635,8 @@ void cmdReg(
 			return;
 		}
 
-		if (newCmd.id == cmd.id)
+		if (newCmd.shortcut.size() &&
+				newCmd.shortcut == cmd.shortcut)
 		{
 			wrnLog("shortcut '%s' already registered. skipping", cmd.shortcut.c_str());
 			return;

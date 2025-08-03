@@ -101,9 +101,10 @@
 
 
 #if CONFIG_PROC_HAVE_LIB_STD_C
-#include <cstdint>
-#include <cstring>
-#include <cstdio>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 #endif
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP
@@ -140,8 +141,17 @@ using lock_guard = cpp_freertos::LockGuard;
 typedef std::lock_guard<std::mutex> Guard;
 #endif
 
+
 extern "C" uint32_t millis();
 extern "C" uint32_t micros();
+
+#ifdef _MSC_VER
+#include <BaseTsd.h>
+#ifndef _SSIZE_T_DEFINED
+typedef SSIZE_T ssize_t;
+#define _SSIZE_T_DEFINED
+#endif
+#endif
 
 enum DriverMode
 {
@@ -241,10 +251,74 @@ protected:
 private:
 	// This area is used by the abstract process
 
-	Processing() {}
-	Processing(const Processing &) {}
+	Processing()
+		: mState(0), mStateOld(0)
+		, mLevelTree(0), mLevelDriver(0)
+		, mName(NULL)
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mChildList()
+#else
+		, mpChildList(NULL)
+#endif
+#if CONFIG_PROC_HAVE_DRIVERS
+		, mChildListMtx(), mpDriver(NULL)
+		, mpConfigDriver(NULL)
+#endif
+		, mSuccess(Pending), mNumChildren(0)
+		, mStateAbstract(0), mStatParent(0)
+		, mDriver(DrivenByExternalDriver)
+#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mNumChildrenMax(CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT)
+#endif
+		, mStatDrv(0)
+	{}
+	Processing(const Processing &)
+		: mState(0), mStateOld(0)
+		, mLevelTree(0), mLevelDriver(0)
+		, mName(NULL)
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mChildList()
+#else
+		, mpChildList(NULL)
+#endif
+#if CONFIG_PROC_HAVE_DRIVERS
+		, mChildListMtx(), mpDriver(NULL)
+		, mpConfigDriver(NULL)
+#endif
+		, mSuccess(Pending), mNumChildren(0)
+		, mStateAbstract(0), mStatParent(0)
+		, mDriver(DrivenByExternalDriver)
+#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+		, mNumChildrenMax(CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT)
+#endif
+		, mStatDrv(0)
+	{}
 	Processing &operator=(const Processing &)
 	{
+		mState = 0;
+		mStateOld = 0;
+		mLevelTree = 0;
+		mLevelDriver = 0;
+		mName = NULL;
+#if CONFIG_PROC_HAVE_LIB_STD_CPP
+		mChildList.clear();
+#else
+		mpChildList = NULL;
+#endif
+#if CONFIG_PROC_HAVE_DRIVERS
+		mpDriver = NULL;
+		mpConfigDriver = NULL;
+#endif
+		mSuccess = Pending;
+		mNumChildren = 0;
+		mStateAbstract = 0;
+		mStatParent = 0;
+		mDriver = DrivenByExternalDriver;
+#if !CONFIG_PROC_HAVE_LIB_STD_CPP
+		mNumChildrenMax = CONFIG_PROC_NUM_MAX_CHILDREN_DEFAULT;
+#endif
+		mStatDrv = 0;
+
 		return *this;
 	}
 
@@ -311,9 +385,12 @@ private:
 #endif
 #define __PROC_FILENAME__ (procStrrChr(__FILE__, '/') ? procStrrChr(__FILE__, '/') + 1 : __FILE__)
 
+typedef uint32_t (*FuncCntTimeCreate)();
+
 #if CONFIG_PROC_HAVE_LOG
 typedef void (*FuncEntryLogCreate)(
 			const int severity,
+			const void *pProc,
 			const char *filename,
 			const char *function,
 			const int line,
@@ -323,22 +400,52 @@ typedef void (*FuncEntryLogCreate)(
 
 void levelLogSet(int lvl);
 void entryLogCreateSet(FuncEntryLogCreate pFct);
-int16_t logEntryCreate(
+void cntTimeCreateSet(FuncCntTimeCreate pFct, int width = 8);
+
+int16_t entryLogSimpleCreate(
+				const int isErr,
+				const int16_t code,
+				const char *msg, ...);
+
+int16_t entryLogCreate(
 				const int severity,
+				const void *pProc,
 				const char *filename,
 				const char *function,
 				const int line,
 				const int16_t code,
 				const char *msg, ...);
-#define genericLog(l, c, m, ...)			(logEntryCreate(l, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
+
+#define genericSimpleLog(e, c, m, ...)      (entryLogSimpleCreate(e, c, m, ##__VA_ARGS__))
+#define genericLog(l, p, c, m, ...)         (entryLogCreate(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #else
 inline void levelLogSet(int lvl)
 {
 	(void)lvl;
 }
+
 #define entryLogCreateSet(pFct)
-inline int16_t logEntryCreateDummy(
+
+inline void cntTimeCreateSet(FuncCntTimeCreate pFct, int width = 8)
+{
+	(void)pFct;
+	(void)width;
+}
+
+inline int16_t entryLogSimpleCreateDummy(
+				const int isErr,
+				const int16_t code,
+				const char *msg, ...)
+{
+	(void)isErr;
+	(void)msg;
+
+	return code;
+}
+
+inline int16_t entryLogCreateDummy(
 				const int severity,
+				const void *pProc,
 				const char *filename,
 				const char *function,
 				const int line,
@@ -346,42 +453,67 @@ inline int16_t logEntryCreateDummy(
 				const char *msg, ...)
 {
 	(void)severity;
+	(void)pProc;
 	(void)filename;
 	(void)function;
 	(void)line;
 	(void)msg;
+
 	return code;
 }
-#define genericLog(l, c, m, ...)	(logEntryCreateDummy(l, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
+
+#define genericSimpleLog(e, c, m, ...)      (entryLogSimpleCreateDummy(e, c, m, ##__VA_ARGS__))
+#define genericLog(l, p, c, m, ...)         (entryLogCreateDummy(l, p, __PROC_FILENAME__, __func__, __LINE__, c, m, ##__VA_ARGS__))
 #endif
 
-#define errLog(c, m, ...)				(c < 0 ? genericLog(1, c, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__) : c)
-#define wrnLog(m, ...)					(genericLog(2, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
-#define infLog(m, ...)					(genericLog(3, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
-#define dbgLog(m, ...)					(genericLog(4, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
+#define userErrLog(c, m, ...)       (c < 0 ? genericSimpleLog(1, c, m, ##__VA_ARGS__) : c)
+#define userInfLog(m, ...)                  (genericSimpleLog(0, 0, m, ##__VA_ARGS__))
 
-#define procErrLog(c, m, ...)			(c < 0 ? genericLog(1, c, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__) : c)
-#define procWrnLog(m, ...)				(genericLog(2, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
-#define procInfLog(m, ...)				(genericLog(3, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
-#define procDbgLog(m, ...)				(genericLog(4, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
+#define errLog(c, m, ...)           (c < 0 ? genericLog(1, NULL, c, m, ##__VA_ARGS__) : c)
+#define wrnLog(m, ...)                      (genericLog(2, NULL, 0, m, ##__VA_ARGS__))
+#define infLog(m, ...)                      (genericLog(3, NULL, 0, m, ##__VA_ARGS__))
+#define dbgLog(m, ...)                      (genericLog(4, NULL, 0, m, ##__VA_ARGS__))
 
-#if CONFIG_PROC_HAVE_LIB_STD_C
-#define dInfoDebugPrefix
-#define dInfo(m, ...)					dInfoDebugPrefix pBuf = (pBuf += snprintf(pBuf, pBufEnd - pBuf, m, ##__VA_ARGS__), pBuf > pBufEnd ? pBufEnd : pBuf)
-#else
-inline void dInfoDummy(char *pBuf, char *pBufEnd, const char *msg, ...)
+#define procErrLog(c, m, ...)       (c < 0 ? genericLog(1, this, c, m, ##__VA_ARGS__) : c)
+#define procWrnLog(m, ...)                  (genericLog(2, this, 0, m, ##__VA_ARGS__))
+#define procInfLog(m, ...)                  (genericLog(3, this, 0, m, ##__VA_ARGS__))
+#define procDbgLog(m, ...)                  (genericLog(4, this, 0, m, ##__VA_ARGS__))
+
+inline void dInfoInternal(char * &pBuf, char *pBufEnd, const char *msg, ...)
 {
-	if (!pBuf)
+	if (!pBuf || !pBufEnd)
+		return;
+
+	if (pBuf >= pBufEnd)
 		return;
 
 	*pBuf = 0;
 
-	(void)pBufEnd;
+	--pBufEnd;
+	*pBufEnd = 0;
+	++pBufEnd;
+
+#if CONFIG_PROC_HAVE_LIB_STD_C
+	va_list args;
+	va_start(args, msg);
+	int lenDone = vsnprintf(pBuf, pBufEnd - pBuf, msg, args);
+	if (lenDone < 0)
+	{
+		va_end(args);
+		*pBuf = 0;
+		return;
+	}
+	va_end(args);
+
+	if (lenDone > pBufEnd - pBuf)
+		lenDone = pBufEnd - pBuf;
+
+	pBuf += lenDone;
+#else
 	(void)msg;
-}
-#define dInfo(m, ...)					dInfoDummy(pBuf, pBufEnd, m, ##__VA_ARGS__)
 #endif
-#define dTrace(x)						pBuf += mncpy(pBuf, pBufEnd - pBuf, (char *)&x, sizeof(x))
+}
+#define dInfo(m, ...)	dInfoInternal(pBuf, pBufEnd, m, ##__VA_ARGS__)
 
 #define dProcessStateEnum(StateName) \
 enum StateName \
@@ -406,23 +538,16 @@ if (mState != mStateOld) \
 }
 
 template <typename T>
-T MIN(T a, T b)
+T PMIN(T a, T b)
 {
 	return a < b ? a : b;
 }
 
 template <typename T>
-T MAX(T a, T b)
+T PMAX(T a, T b)
 {
 	return a > b ? a : b;
 }
-
-#ifdef _MSC_VER
-#ifndef SSIZE_TYPE_DEFINE
-#define SSIZE_TYPE_DEFINE
-#define ssize_t SSIZE_T
-#endif
-#endif
 
 #endif
 

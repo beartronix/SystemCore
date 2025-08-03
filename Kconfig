@@ -3,7 +3,7 @@ menu "DSP-Crowd Electronics GmbH"
 
 config PROC_HAVE_LOG
 	bool "Enable process log system"
-	default "n"
+	default "y"
 	help
 		Log file available for target
 
@@ -24,6 +24,18 @@ config PROC_INFO_BUFFER_SIZE
 	default "1021"
 	help
 		Number of bytes for process info buffer
+
+config PROC_LOG_HAVE_STDOUT
+	bool "System has stdout"
+	default "y"
+	help
+		System has stdout
+
+config PROC_LOG_HAVE_CHRONO
+	bool "System has std::chrono"
+	default "y"
+	help
+		System has std::chrono
 
 config CMD_SIZE_BUFFER_OUT
 	int "Command output buffer size"

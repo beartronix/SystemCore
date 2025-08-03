@@ -85,6 +85,9 @@ bool TcpTransfering::globalInitDone = false;
 TcpTransfering::TcpTransfering(SOCKET fd)
 	: Transfering("TcpTransfering")
 	, mStartMs(0)
+#if CONFIG_PROC_HAVE_DRIVERS
+	, mSocketFdMtx()
+#endif
 	, mSocketFd(fd)
 	, mHostAddrStr("")
 	, mHostPort(0)
@@ -97,8 +100,8 @@ TcpTransfering::TcpTransfering(SOCKET fd)
 	, mBytesSent(0)
 {
 	mState = StSrvStart;
-	addrInfoSet();
 	mSendReady = true;
+	addrInfoSet();
 }
 
 // strAddrHost can be
@@ -108,6 +111,9 @@ TcpTransfering::TcpTransfering(SOCKET fd)
 TcpTransfering::TcpTransfering(const string &hostAddr, uint16_t hostPort)
 	: Transfering("TcpTransfering")
 	, mStartMs(0)
+#if CONFIG_PROC_HAVE_DRIVERS
+	, mSocketFdMtx()
+#endif
 	, mSocketFd(INVALID_SOCKET)
 	, mHostAddrStr(hostAddr)
 	, mHostPort(hostPort)
@@ -138,7 +144,9 @@ Success TcpTransfering::process()
 	Success success;
 	int res, numErr = 0;
 	ssize_t connCheck;
+#ifdef _WIN32
 	bool ok;
+#endif
 #if 0
 	dStateTrace;
 #endif
@@ -167,8 +175,6 @@ Success TcpTransfering::process()
 		ok = wsaInit();
 		if (!ok)
 			return procErrLog(-2, "could not init WSA");
-#else
-		(void)ok;
 #endif
 		mState = StCltArgCheck;
 
@@ -617,7 +623,7 @@ void TcpTransfering::addrInfoSet()
 	if (res == -1)
 		return;
 #endif
-	sockaddrInfoGet(addr, mAddrRemote, mPortRemote, mIsIPv6Remote);
+	ok = sockaddrInfoGet(addr, mAddrRemote, mPortRemote, mIsIPv6Remote);
 	if (!ok)
 		return;
 
@@ -672,16 +678,19 @@ string TcpTransfering::errnoToStr(int num)
 {
 	char buf[64];
 	size_t len = sizeof(buf) - 1;
-	char *pBuf = buf;
+	char *pBuf;
 
 	buf[0] = 0;
 	buf[len] = 0;
 
 #if defined(_WIN32)
+	pBuf = buf;
 	errno_t numErr = ::strerror_s(buf, len, num);
 	(void)numErr;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	int res;
+
+	pBuf = buf;
 	res = ::strerror_r(num, buf, len);
 	if (res)
 		*pBuf = 0;

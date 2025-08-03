@@ -2,23 +2,21 @@
 
 ## Supported Versions
 
-We do not have a release of the [Processing()]() class yet.
-As soon as we have a first version, we will update this file.
-
-Version strings will have the following format: `Processing()-yy.mm-n`
+Version strings will have the following format: `SystemCore-vm.yy.mm.n`
 
 | Key | Description |
 | - | - |
-| Processing() | Name of the process |
+| SystemCore | Name of the package |
+| m | Major Version |
 | yy | Year |
 | mm | Month |
-| n  | Build number |
+| n  | Build Number |
 
-Example: `Processing()-23.05-1`
+Example: `SystemCore-v1.25.4.1`
 
 | Version | Supported          |
 | ------- | ------------------ |
-| Processing()-23.05-1   | :white_check_mark: |
+| SystemCore-v1.25.4.1   | :white_check_mark: |
 
 ## Reporting a Vulnerability
 

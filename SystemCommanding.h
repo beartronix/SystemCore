@@ -94,15 +94,86 @@ public:
 
 protected:
 
-	SystemCommanding() : Processing("SystemCommanding") {}
-	SystemCommanding(SOCKET fd);
 	virtual ~SystemCommanding() {}
 
 private:
 
-	SystemCommanding(const SystemCommanding &) : Processing("") {}
+	SystemCommanding(SOCKET fd);
+	SystemCommanding()
+		: Processing("")
+		, mSocketFd(INVALID_SOCKET)
+		, mpTrans(NULL)
+		, mStateKey(0)
+		, mStartMs(0)
+		, mModeAuto(false)
+		, mTermChanged(false)
+		, mDone(false)
+		, mLastKeyWasTab(false)
+		, mIdxLineEdit(0)
+		, mIdxLineView(0)
+#if CONFIG_CMD_SIZE_HISTORY
+		, mIdxLineLast(-1)
+#endif
+		, mIdxColCursor(0)
+		, mIdxColLineEnd(0)
+	{
+		mBufOut[0] = 0;
+
+		mState = 0;
+
+		for (size_t i = 0; i < cNumCmdInBuffer; ++i)
+			mCmdInBuf[i][0] = 0;
+	}
+	SystemCommanding(const SystemCommanding &)
+		: Processing("")
+		, mSocketFd(INVALID_SOCKET)
+		, mpTrans(NULL)
+		, mStateKey(0)
+		, mStartMs(0)
+		, mModeAuto(false)
+		, mTermChanged(false)
+		, mDone(false)
+		, mLastKeyWasTab(false)
+		, mIdxLineEdit(0)
+		, mIdxLineView(0)
+#if CONFIG_CMD_SIZE_HISTORY
+		, mIdxLineLast(-1)
+#endif
+		, mIdxColCursor(0)
+		, mIdxColLineEnd(0)
+	{
+		mBufOut[0] = 0;
+
+		mState = 0;
+
+		for (size_t i = 0; i < cNumCmdInBuffer; ++i)
+			mCmdInBuf[i][0] = 0;
+	}
 	SystemCommanding &operator=(const SystemCommanding &)
 	{
+		mSocketFd = INVALID_SOCKET;
+		mpTrans = NULL;
+		mStateKey = 0;
+		mStartMs = 0;
+		mModeAuto = false;
+		mTermChanged = false;
+		mDone = false;
+		mLastKeyWasTab = false;
+		mIdxLineEdit = 0;
+		mIdxLineView = 0;
+#if CONFIG_CMD_SIZE_HISTORY
+		mIdxLineLast = -1;
+#endif
+		mIdxColCursor = 0;
+		mIdxColLineEnd = 0;
+
+		mBufOut[0] = 0;
+
+		mState = 0;
+
+		for (size_t i = 0; i < cNumCmdInBuffer; ++i)
+			mCmdInBuf[i][0] = 0;
+
 		return *this;
 	}
 
