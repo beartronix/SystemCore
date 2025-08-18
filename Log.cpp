@@ -86,9 +86,23 @@ const int cDiffSecMax = 9;
 const int cDiffMsMax = 999;
 #endif
 
+#ifdef _WIN32
+const WORD red = 4;
+const WORD yellow = 6;
+const WORD cyan = 3;
+const WORD colorDefault = 7;
+#else
 const char *red = "\033[0;31m";
 const char *yellow = "\033[0;33m";
-const char *reset = "\033[37m";
+const char *cyan = "\033[0;36m";
+const char *colorDefault = "\033[37m";
+#endif
+
+#ifdef CONFIG_PROC_LOG_COLOR_INF
+#define colorInfo CONFIG_PROC_LOG_COLOR_INF
+#else
+#define colorInfo colorDefault
+#endif
 
 const size_t cLogEntryBufferSize = 230;
 static int levelLog = 3;
@@ -313,28 +327,36 @@ int16_t entryLogCreate(
 
 		if (severity == 1)
 		{
-			SetConsoleTextAttribute(hConsole, 4);
+			SetConsoleTextAttribute(hConsole, red);
 			fprintf(stderr, "%s\r\n", pBufStart);
+			SetConsoleTextAttribute(hConsole, colorInfo);
 		}
 		else
 		if (severity == 2)
 		{
-			SetConsoleTextAttribute(hConsole, 6);
+			SetConsoleTextAttribute(hConsole, yellow);
 			fprintf(stderr, "%s\r\n", pBufStart);
+			SetConsoleTextAttribute(hConsole, colorInfo);
 		}
 		else
-			fprintf(stdout, "%s\r\n", pBufStart);
-
-		SetConsoleTextAttribute(hConsole, 7);
+		if (severity >= 4)
+		{
+			SetConsoleTextAttribute(hConsole, cyan);
+			fprintf(stderr, "%s\r\n", pBufStart);
+			SetConsoleTextAttribute(hConsole, colorInfo);
+		}
 #else
 		if (severity == 1)
-			fprintf(stderr, "%s%s%s\r\n", red, pBufStart, reset);
+			fprintf(stderr, "%s%s%s\r\n", red, pBufStart, colorInfo);
 		else
 		if (severity == 2)
-			fprintf(stderr, "%s%s%s\r\n", yellow, pBufStart, reset);
+			fprintf(stderr, "%s%s%s\r\n", yellow, pBufStart, colorInfo);
+		else
+		if (severity >= 4)
+			fprintf(stderr, "%s%s%s\r\n", cyan, pBufStart, colorInfo);
+#endif
 		else
 			fprintf(stdout, "%s\r\n", pBufStart);
-#endif
 	}
 #endif
 	if (pFctEntryLogCreate)
