@@ -19,7 +19,7 @@ pathComPort = '/dev/ttyUSB0'
 if len(args) > 1:
 	pathComPort = args[1]
 
-comPort = serial.Serial(pathComPort, 38400, timeout=0.2)
+comPort = serial.Serial(pathComPort, 38400, timeout=0.01)
 comPort.reset_input_buffer()
 
 
