@@ -323,7 +323,7 @@ int16_t entryLogCreate(
 		tOld = t;
 #endif
 #ifdef _WIN32
-		HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+		HANDLE hConsole = GetStdHandle(severity < 3 ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
 		CONSOLE_SCREEN_BUFFER_INFO infoConsole;
 
 		GetConsoleScreenBufferInfo(hConsole, &infoConsole);
