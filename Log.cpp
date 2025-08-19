@@ -90,18 +90,18 @@ const int cDiffMsMax = 999;
 const WORD red = 4;
 const WORD yellow = 6;
 const WORD cyan = 3;
-const WORD colorDefault = 7;
+const WORD dColorDefault = 7;
 #else
 const char *red = "\033[0;31m";
 const char *yellow = "\033[0;33m";
 const char *cyan = "\033[0;36m";
-const char *colorDefault = "\033[37m";
+const char *dColorDefault = "\033[39m";
 #endif
 
 #ifdef CONFIG_PROC_LOG_COLOR_INF
-#define colorInfo CONFIG_PROC_LOG_COLOR_INF
+#define dColorInfo CONFIG_PROC_LOG_COLOR_INF
 #else
-#define colorInfo colorDefault
+#define dColorInfo dColorDefault
 #endif
 
 const size_t cLogEntryBufferSize = 230;
@@ -324,39 +324,50 @@ int16_t entryLogCreate(
 #endif
 #ifdef _WIN32
 		HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+		CONSOLE_SCREEN_BUFFER_INFO infoConsole;
+
+		GetConsoleScreenBufferInfo(hConsole, &infoConsole);
+
+		WORD colorBkup = infoConsole.wAttributes;
 
 		if (severity == 1)
 		{
 			SetConsoleTextAttribute(hConsole, red);
 			fprintf(stderr, "%s\r\n", pBufStart);
-			SetConsoleTextAttribute(hConsole, colorInfo);
+			SetConsoleTextAttribute(hConsole, colorBkup);
 		}
 		else
 		if (severity == 2)
 		{
 			SetConsoleTextAttribute(hConsole, yellow);
 			fprintf(stderr, "%s\r\n", pBufStart);
-			SetConsoleTextAttribute(hConsole, colorInfo);
+			SetConsoleTextAttribute(hConsole, colorBkup);
 		}
 		else
 		if (severity >= 4)
 		{
 			SetConsoleTextAttribute(hConsole, cyan);
-			fprintf(stderr, "%s\r\n", pBufStart);
-			SetConsoleTextAttribute(hConsole, colorInfo);
+			fprintf(stdout, "%s\r\n", pBufStart);
+			SetConsoleTextAttribute(hConsole, colorBkup);
+		}
+		else
+		{
+			SetConsoleTextAttribute(hConsole, dColorInfo);
+			fprintf(stdout, "%s\r\n", pBufStart);
+			SetConsoleTextAttribute(hConsole, colorBkup);
 		}
 #else
 		if (severity == 1)
-			fprintf(stderr, "%s%s%s\r\n", red, pBufStart, colorInfo);
+			fprintf(stderr, "%s%s%s\r\n", red, pBufStart, dColorDefault);
 		else
 		if (severity == 2)
-			fprintf(stderr, "%s%s%s\r\n", yellow, pBufStart, colorInfo);
+			fprintf(stderr, "%s%s%s\r\n", yellow, pBufStart, dColorDefault);
 		else
 		if (severity >= 4)
-			fprintf(stderr, "%s%s%s\r\n", cyan, pBufStart, colorInfo);
-#endif
+			fprintf(stdout, "%s%s%s\r\n", cyan, pBufStart, dColorDefault);
 		else
-			fprintf(stdout, "%s\r\n", pBufStart);
+			fprintf(stdout, "%s%s%s\r\n", dColorInfo, pBufStart, dColorDefault);
+#endif
 	}
 #endif
 	if (pFctEntryLogCreate)
