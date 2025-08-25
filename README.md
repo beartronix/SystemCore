@@ -40,7 +40,7 @@ Or just create your own..
 
 The [Tutorials](https://github.com/NoOrientationProgramming/NopTutorials) provide more information on how to delve into this wonderful (recursive) world ..
 
-Another greate example for using the SystemCore is [CodeOrb](https://github.com/NoOrientationProgramming/code-orb#codeorb-start)!
+Another great example for using the SystemCore is [CodeOrb](https://github.com/NoOrientationProgramming/code-orb#codeorb-start)!
 
 ### Requirements
 
