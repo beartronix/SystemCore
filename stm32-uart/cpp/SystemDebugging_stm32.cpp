@@ -32,7 +32,7 @@
 
 #include "./SystemDebugging.h"
 #include "env.h"
-#include "util.h"
+#include "util.hpp"
 
 #define dForEach_ProcState(gen) \
 	gen(StCmdRcvdWait) \

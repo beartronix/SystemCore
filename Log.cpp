@@ -44,7 +44,7 @@ using namespace chrono;
 
 #include "stm32-uart/cpp/SystemDebugging.h"
 
-#include "util.h"
+#include "util.hpp"
 
 using namespace std;
 

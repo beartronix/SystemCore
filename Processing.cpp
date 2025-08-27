@@ -30,6 +30,8 @@
 
 #include "Processing.h"
 
+#include "time.hpp"
+
 #define coreLog(m, ...)					(genericLog(5, 0, "%-41s " m, __PROC_FILENAME__, ##__VA_ARGS__))
 #define procCoreLog(m, ...)				(genericLog(5, 0, "%p %-26s " m, this, this->procName(), ##__VA_ARGS__))
 
@@ -244,7 +246,10 @@ void Processing::treeTick()
 			break;
 		}
 
-		success = process(); // child list may be changed here
+		{
+			MeasureTime tDuration(mProcTimeUs, mProcTimeMaxUs, mTsProcTimeMaxMs);
+			success = process(); // child list may be changed here
+		}
 
 		if (success == Pending)
 			break;
@@ -411,6 +416,10 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 
 		pBufLineStart = pBufIter = bufInfo;
 		lastChildInfoLine = 0;
+
+		// for (n = 0; n < 2 * mLevelTree + 2; ++n)
+		// 	dInfo(" ");
+		// dInfo("TIME SPENT (now/max)\t%4dµs/%4dµs\n", (int)mProcTimeUs, (int)mProcTimeMaxUs);
 
 		while (1)
 		{
@@ -1097,7 +1106,7 @@ Processing **Processing::childElemErase(Processing **pChildListElem)
 #endif
 
 #include "stm32l4xx_hal.h"
-#include "util.h"
+#include "util.hpp"
 void Processing::parentalDrive(Processing *pChild)
 {
 	if (pChild->mDriver != DrivenByParent)
@@ -1110,6 +1119,7 @@ void Processing::parentalDrive(Processing *pChild)
 
 	if (FLASH->SR)
 	{
+		DEBUG_BREAK_POINT;
 		dbgLog("FLASH->SR == 0x%04X", (unsigned int)FLASH->SR);
 		FLASH_WaitForLastOperation(10);
 	}

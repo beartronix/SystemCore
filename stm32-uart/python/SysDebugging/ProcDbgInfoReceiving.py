@@ -108,6 +108,7 @@ while True:
 			msg = b'\033\143\033[37m' + data[1:msgEnd+4]
 
 		elif msgId == ID_BIN:
+			# print("Got BIN")
 			size = struct.unpack('h', data[1:3])[0]
 			msgEnd = 3+size
 			msg = data[3:msgEnd]
