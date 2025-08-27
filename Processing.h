@@ -137,8 +137,8 @@ typedef std::lock_guard<std::mutex> Guard;
 #endif
 
 
-extern "C" uint32_t millis();
-extern "C" uint32_t micros();
+uint32_t millis();
+uint32_t micros();
 
 #ifdef _MSC_VER
 #include <BaseTsd.h>
@@ -322,6 +322,9 @@ private:
 	/* member variables */
 	uint8_t mLevelTree;
 	uint8_t mLevelDriver;
+
+	uint32_t mProcTimeUs = 0, mProcTimeMaxUs = 0, mTsProcTimeMaxMs = 0;
+	static const uint32_t mMaxProcessDurationWindowMs = 1000;
 
 	const char *mName;
 

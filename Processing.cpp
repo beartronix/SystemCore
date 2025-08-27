@@ -30,6 +30,8 @@
 
 #include "Processing.h"
 
+#include "time.hpp"
+
 #define coreLog(m, ...)					(genericLog(5, NULL, 0, m, ##__VA_ARGS__))
 #define procCoreLog(m, ...)				(genericLog(5, this, 0, m, ##__VA_ARGS__))
 
@@ -244,7 +246,10 @@ void Processing::treeTick()
 			break;
 		}
 
-		sSuccess = process(); // child list may be changed here
+		{
+			MeasureTime tDuration(mProcTimeUs, mProcTimeMaxUs, mTsProcTimeMaxMs);
+			sSuccess = process(); // child list may be changed here
+		}
 
 		if (sSuccess == Pending)
 			break;
@@ -412,6 +417,11 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 
 		pBufLineStart = pBufIter = bufInfo;
 		lastChildInfoLine = 0;
+
+		for (n = 0; n < 2 * mLevelTree + 2; ++n)
+			dInfo(" ");
+		dInfo("TIME SPENT (now/max)\t%4dµs/%4dµs\n", (int)mProcTimeUs, (int)mProcTimeMaxUs);
+
 
 		while (1)
 		{
