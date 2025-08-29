@@ -502,7 +502,13 @@ Success TcpTransfering::socketOptionsSet()
 	int res;
 	bool ok;
 
+
 	opt = 1;
+	// res = ::setsockopt(mSocketFd, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+	// if (res)
+	// 	return procErrLog(-2, "setsockopt(TCP_NODELAY) failed: %s",
+	// 						errnoToStr(errGet()).c_str());
+
 	res = ::setsockopt(mSocketFd, SOL_SOCKET, SO_KEEPALIVE, (const char *)&opt, sizeof(opt));
 	if (res)
 		return procErrLog(-2, "setsockopt(SO_KEEPALIVE) failed: %s",
@@ -514,6 +520,7 @@ Success TcpTransfering::socketOptionsSet()
 							errnoToStr(errGet()).c_str());
 
 	mReadReady = true;
+
 
 	return Positive;
 }

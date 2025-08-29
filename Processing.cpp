@@ -418,9 +418,9 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 		pBufLineStart = pBufIter = bufInfo;
 		lastChildInfoLine = 0;
 
-		for (n = 0; n < 2 * mLevelTree + 2; ++n)
-			dInfo(" ");
-		dInfo("TIME SPENT (now/max)\t%4dµs/%4dµs\n", (int)mProcTimeUs, (int)mProcTimeMaxUs);
+		// for (n = 0; n < 2 * mLevelTree + 2; ++n)
+		// 	dInfo(" ");
+		// dInfo("TIME SPENT (now/max)\t%4dµs/%4dµs\n", (int)mProcTimeUs, (int)mProcTimeMaxUs);
 
 
 		while (1)

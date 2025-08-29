@@ -78,7 +78,7 @@ SystemDebugging::SystemDebugging(Processing *pTreeRoot)
 	, mProcTreeChanged(false)
 	, mProcTreePeerAdded(false)
 	, mPeerLogOnceConnected(false)
-	, mUpdateMs(500)
+	, mUpdateMs(300)
 	, mProcTreeChangedTime(0)
 	, mPortStart(3000)
 {
@@ -408,7 +408,10 @@ void SystemDebugging::processTreeSend()
 			continue;
 
 		if (peer.type == PeerProc)
+		{
 			pTrans->send(msg.c_str(), msg.size());
+			// dbgLog("socket::send(%d) == %d", (int)msg.size(), (int)ret);
+		}
 	}
 
 	mProcTree = procTree;
