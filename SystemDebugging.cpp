@@ -408,7 +408,10 @@ void SystemDebugging::processTreeSend()
 			continue;
 
 		if (peer.type == PeerProc)
+		{
 			pTrans->send(msg.c_str(), msg.size());
+			// stats_display();
+		}
 	}
 
 	mProcTree = procTree;
