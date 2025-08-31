@@ -408,10 +408,7 @@ void SystemDebugging::processTreeSend()
 			continue;
 
 		if (peer.type == PeerProc)
-		{
 			pTrans->send(msg.c_str(), msg.size());
-			// dbgLog("socket::send(%d) == %d", (int)msg.size(), (int)ret);
-		}
 	}
 
 	mProcTree = procTree;
