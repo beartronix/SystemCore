@@ -104,7 +104,7 @@ const char *dColorDefault = "\033[39m";
 #define dColorInfo dColorDefault
 #endif
 
-const size_t cLogEntryBufferSize = 230;
+const size_t cLogEntryBufferSize = 512;
 static int levelLog = 3;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxPrint;
