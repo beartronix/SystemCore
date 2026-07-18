@@ -89,6 +89,11 @@ public:
 		return mAddrRemote;
 	}
 
+	virtual const uint16_t &portRemote() const
+	{
+		return mPortRemote;
+	}
+
 protected:
 
 	Transfering()

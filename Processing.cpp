@@ -30,6 +30,10 @@
 
 #include "Processing.h"
 
+#if CONFIG_PROC_MEASURE_DURATION
+#include "time.hpp"
+#endif
+
 #if CONFIG_PROC_HAVE_CORE_LOG
 #define coreLog(m, ...)					(genericLog(5, NULL, 0, m, ##__VA_ARGS__))
 #define procCoreLog(m, ...)				(genericLog(5, this, 0, m, ##__VA_ARGS__))
@@ -249,7 +253,12 @@ void Processing::treeTick()
 			break;
 		}
 
-		sSuccess = process(); // child list may be changed here
+		{
+#if CONFIG_PROC_MEASURE_DURATION
+			MeasureTime tDuration(mProcTimeUs, mProcTimeMaxUs, mTsProcTimeMaxMs);
+#endif
+			sSuccess = process(); // child list may be changed here
+		}
 
 		if (sSuccess == Pending)
 			break;
@@ -425,6 +434,14 @@ size_t Processing::processTreeStr(char *pBuf, char *pBufEnd, bool detailed, bool
 
 		pBufLineStart = pBufIter = bufInfo;
 		lastChildInfoLine = 0;
+
+#if CONFIG_PROC_MEASURE_DURATION
+		for (n = 0; n < 2 * mLevelTree + 2; ++n)
+		{
+			dInfo(" ");
+		}
+		dInfo("TIME SPENT (now/max)\t%4dµs/%4dµs\n", (int)mProcTimeUs, (int)mProcTimeMaxUs);
+#endif
 
 		while (1)
 		{

@@ -54,6 +54,7 @@ using namespace chrono;
 
 typedef list<struct SystemDebuggingPeer>::iterator PeerIter;
 queue<string> SystemDebugging::qLogEntries;
+RingBuffer<string> SystemDebugging::qLogEntriesExt(10);
 int SystemDebugging::levelLog = 3;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxLogEntries;
@@ -496,8 +497,8 @@ void SystemDebugging::cmdLevelLogSysSet(char *pArgs, char *pBuf, char *pBufEnd)
 
 static const char *tabColors[] =
 {
-	"\033[39m",   /* default */	"\033[0;31m", /* red */		"\033[0;33m", /* yellow */
-	"\033[39m",   /* default */	"\033[0;36m", /* cyan */		"\033[0;35m", /* purple */
+	"\033[39m",		/* default */	"\033[0;31m", /* red */		"\033[0;33m", /* yellow */
+	"\033[0;32m",	/* green */		"\033[0;36m", /* cyan */	"\033[0;35m", /* purple */
 };
 
 void SystemDebugging::entryLogEnqueue(
@@ -542,11 +543,11 @@ void SystemDebugging::entryLogEnqueue(
 
 	str += tabColors[severity];
 	str += pSeverity;
+	str += pWhatUser;
 	str += tabColors[0];
 
-	str += pWhatUser;
-
 	qLogEntries.emplace(str);
+	qLogEntriesExt.push(str);
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 	tLoggedInQueue = tLogged;
 #endif

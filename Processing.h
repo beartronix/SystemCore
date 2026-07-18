@@ -248,6 +248,11 @@ private:
 	uint8_t mLevelTree;
 	uint8_t mLevelDriver;
 
+#if CONFIG_PROC_MEASURE_DURATION
+	uint32_t mProcTimeUs = 0, mProcTimeMaxUs = 0, mTsProcTimeMaxMs = 0;
+	static const uint32_t mMaxProcessDurationWindowMs = 1000;
+#endif
+
 	const char *mName;
 
 #if CONFIG_PROC_HAVE_LIB_STD_CPP

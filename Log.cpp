@@ -99,8 +99,8 @@ static const WORD tabColors[] =
 #else
 static const char *tabColors[] =
 {
-	"\033[39m",   /* default */	"\033[0;31m", /* red */		"\033[0;33m", /* yellow */
-	"\033[39m",   /* default */	"\033[0;36m", /* cyan */		"\033[0;35m", /* purple */
+	"\033[39m",		/* default */	"\033[0;31m", /* red */		"\033[0;33m", /* yellow */
+	"\033[0;32m",	/* green */		"\033[0;36m", /* cyan */	"\033[0;35m", /* purple */
 };
 #endif
 #endif
@@ -487,7 +487,7 @@ static void toConsoleWrite(
 #endif
 			pTimeCnt, pWhere,
 			tabColors[severity], pSeverity,
-			tabColors[0], pWhatUser);
+			pWhatUser, tabColors[0]);
 #endif
 	fflush(fOut);
 #if CONFIG_PROC_LOG_HAVE_CHRONO
