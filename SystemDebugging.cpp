@@ -54,7 +54,7 @@ using namespace chrono;
 
 typedef list<struct SystemDebuggingPeer>::iterator PeerIter;
 queue<string> SystemDebugging::qLogEntries;
-RingBuffer<string> SystemDebugging::qLogEntriesExt(10);
+RingBuffer<string> SystemDebugging::qLogEntriesExt(CONFIG_PROC_LOG_EXT_SIZE);
 int SystemDebugging::levelLog = 3;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxLogEntries;
