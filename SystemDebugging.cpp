@@ -54,7 +54,6 @@ using namespace chrono;
 
 typedef list<struct SystemDebuggingPeer>::iterator PeerIter;
 queue<string> SystemDebugging::qLogEntries;
-RingBuffer<string> SystemDebugging::qLogEntriesExt(CONFIG_PROC_LOG_EXT_SIZE);
 int SystemDebugging::levelLog = 3;
 #if CONFIG_PROC_HAVE_DRIVERS
 static mutex mtxLogEntries;
@@ -134,7 +133,7 @@ Success SystemDebugging::process()
 		cmdReg("levelLog", &SystemDebugging::cmdLevelLogSet, "", "Set the log level for stdout", cInternalCmdCls);
 		cmdReg("levelLogSys", &SystemDebugging::cmdLevelLogSysSet, "", "Set the log level for socket", cInternalCmdCls);
 
-		entryLogCreateSet(SystemDebugging::entryLogEnqueue);
+		entryLogCreateAdd(SystemDebugging::entryLogEnqueue);
 
 		mState = StMain;
 
@@ -547,7 +546,6 @@ void SystemDebugging::entryLogEnqueue(
 	str += tabColors[0];
 
 	qLogEntries.emplace(str);
-	qLogEntriesExt.push(str);
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 	tLoggedInQueue = tLogged;
 #endif

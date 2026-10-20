@@ -35,7 +35,6 @@
 #include <list>
 #include <queue>
 #include <time.h>
-#include "RingBuffer.hpp"
 
 #include "Processing.h"
 #include "TcpListening.h"
@@ -73,7 +72,6 @@ public:
 	static void levelLogSet(int lvl);
 
 	const std::string& processTree() const { return mProcTree; }
-	RingBuffer<std::string>& logBuf() { return SystemDebugging::qLogEntriesExt; }
 
 protected:
 
@@ -199,7 +197,6 @@ private:
 
 	/* static variables */
 	static std::queue<std::string> qLogEntries;
-	static RingBuffer<std::string> qLogEntriesExt; // for external access
 	static int levelLog;
 
 	/* constants */

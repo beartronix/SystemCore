@@ -77,7 +77,7 @@ typedef void (*FuncEntryLogCreate)(
 
 typedef uint32_t (*FuncCntTimeCreate)();
 
-static FuncEntryLogCreate pFctEntryLogCreate = NULL;
+static vector<FuncEntryLogCreate> fctEntryLogCreate;
 static FuncCntTimeCreate pFctCntTimeCreate = NULL;
 static int widthCntTime = 0;
 
@@ -139,12 +139,13 @@ int levelLogGet()
 	return levelLog;
 }
 
-void entryLogCreateSet(FuncEntryLogCreate pFct)
+void entryLogCreateAdd(FuncEntryLogCreate pFct)
 {
 #if CONFIG_PROC_HAVE_DRIVERS
 	lock_guard<mutex> lock(mtxPrint); // Guard not defined!
 #endif
-	pFctEntryLogCreate = pFct;
+	if (find(fctEntryLogCreate.begin(), fctEntryLogCreate.end(), pFct) == fctEntryLogCreate.end())
+		fctEntryLogCreate.push_back(pFct);
 }
 
 void cntTimeCreateSet(FuncCntTimeCreate pFct, int width)
@@ -559,9 +560,9 @@ int16_t entryLogCreate(
 #endif
 
 	// +++ Listener
-	if (pFctEntryLogCreate)
+	for (FuncEntryLogCreate& f : fctEntryLogCreate)
 	{
-		pFctEntryLogCreate(
+		f(
 			severity,
 #if CONFIG_PROC_LOG_HAVE_CHRONO
 			pTimeAbs,

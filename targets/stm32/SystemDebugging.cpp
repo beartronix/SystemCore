@@ -257,7 +257,7 @@ Success SystemDebugging::process()
 		if (!pSwt->mSendReady)
 			break;
 
-		entryLogCreateSet(SystemDebugging::entryLogEnqueue);
+		entryLogCreateAdd(SystemDebugging::entryLogEnqueue);
 
 		mReady = true;
 

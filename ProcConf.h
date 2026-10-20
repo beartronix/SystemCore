@@ -115,9 +115,5 @@
 #define CONFIG_PROC_IPV6_ENABLED				1
 #endif
 
-#ifndef CONFIG_PROC_LOG_EXT_SIZE
-#define CONFIG_PROC_LOG_EXT_SIZE 10
-#endif
-
 #endif
 

@@ -330,7 +330,7 @@ typedef uint32_t (*FuncCntTimeCreate)();
 #if CONFIG_PROC_HAVE_LOG
 void levelLogSet(int lvl);
 int levelLogGet();
-void entryLogCreateSet(FuncEntryLogCreate pFct);
+void entryLogCreateAdd(FuncEntryLogCreate pFct);
 void cntTimeCreateSet(FuncCntTimeCreate pFct, int width = 8);
 
 int16_t entryLogSimpleCreate(
@@ -361,7 +361,7 @@ inline int levelLogGet()
 {
 	return 0;
 }
-inline void entryLogCreateSet(FuncEntryLogCreate pFct)
+inline void entryLogCreateAdd(FuncEntryLogCreate pFct)
 {
 	(void)pFct;
 }
